@@ -1,0 +1,183 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
+    system-ui, sans-serif;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hide scrollbars but allow scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ===== App open / close animations ===== */
+
+@keyframes app-open {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+    border-radius: 44px;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    border-radius: 0;
+  }
+}
+
+@keyframes app-close {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    border-radius: 0;
+  }
+  100% {
+    transform: scale(0.3);
+    opacity: 0;
+    border-radius: 44px;
+  }
+}
+
+.app-open {
+  animation: app-open 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.app-close {
+  animation: app-close 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Icon press bounce */
+@keyframes icon-press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.88); }
+  100% { transform: scale(1); }
+}
+.icon-press {
+  animation: icon-press 0.3s ease-out;
+}
+
+/* App switcher card entrance */
+@keyframes card-in {
+  0% {
+    transform: scale(0.85) translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+.card-in {
+  animation: card-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Switcher backdrop fade */
+@keyframes switcher-fade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.switcher-fade {
+  animation: switcher-fade 0.2s ease-out forwards;
+}
+
+/* Home screen shrink when switcher opens */
+@keyframes home-shrink {
+  0% {
+    transform: scale(1);
+    border-radius: 0;
+  }
+  100% {
+    transform: scale(0.82);
+    border-radius: 36px;
+  }
+}
+.home-shrink {
+  animation: home-shrink 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Card fly-back to full screen when switching */
+@keyframes card-expand {
+  0% {
+    transform: scale(0.82);
+    border-radius: 36px;
+  }
+  100% {
+    transform: scale(1);
+    border-radius: 0;
+  }
+}
+.card-expand {
+  animation: card-expand 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* App fade when sent to background */
+@keyframes app-to-bg {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.82);
+    opacity: 0.6;
+    border-radius: 36px;
+  }
+}
+.app-to-bg {
+  animation: app-to-bg 0.25s ease-out forwards;
+}
+
+/* Boot loading bar */
+@keyframes loadbar {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+/* Status bar pulse */
+@keyframes fade-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Prevent text size adjust on rotation */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ===== System-wide dark mode =====
+   Applied on the app renderer shell when dark appearance is active.
+   Inverts light app backgrounds and darkens text while keeping accent colors. */
+.dark-shell {
+  filter: invert(0.92) hue-rotate(180deg);
+  background: #1c1c1e;
+}
+.dark-shell img,
+.dark-shell [style*='background-image'],
+.dark-shell [class*='from-'],
+.dark-shell [class*='bg-gradient'] {
+  filter: invert(0.92) hue-rotate(180deg);
+}
