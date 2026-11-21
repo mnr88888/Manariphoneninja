@@ -165,6 +165,22 @@ export const APPS: AppDefinition[] = [
     iconColor: 'text-[#34C759]',
   },
   {
+    id: 'instagram',
+    name: 'إنستغرام',
+    icon: Camera,
+    imageIcon: '/instagram.webp',
+    gradient: 'from-[#833AB4] via-[#E1306C] to-[#F77737]',
+    iconColor: 'text-white',
+  },
+  {
+    id: 'x',
+    name: 'X',
+    icon: MessageCircle,
+    imageIcon: '/x.webp',
+    gradient: 'from-[#000000] to-[#1C1C1E]',
+    iconColor: 'text-white',
+  },
+  {
     id: 'ninja',
     name: 'نينجا',
     icon: ShoppingBag,

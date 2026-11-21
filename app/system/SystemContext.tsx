@@ -254,9 +254,54 @@ interface SystemContextValue {
   // Lock screen
   locked: boolean;
   setLocked: (locked: boolean) => void;
+  ninjaCampaign: NinjaCampaign;
+  updateNinjaCampaign: (patch: Partial<NinjaCampaign>) => void;
+  ninjaProfile: NinjaProfile;
+  updateNinjaProfile: (patch: Partial<NinjaProfile>) => void;
 }
 
 const SystemContext = createContext<SystemContextValue | null>(null);
+
+/* ============================================================
+ * Ninja brand account + campaign (shared by Instagram & X)
+ * ============================================================ */
+
+export interface NinjaProfile {
+  name: string; // display name
+  username: string; // @handle
+  bio: string;
+  avatar: string; // image path or data URI
+  followers: number;
+  following: number;
+}
+
+export interface NinjaCampaign {
+  /** 'draft' | 'published' */
+  status: 'draft' | 'published';
+  image: string; // image path or data URI (user uploads)
+  title: string;
+  description: string;
+  hashtag: string;
+  updatedAt: number;
+}
+
+const DEFAULT_NINJA_PROFILE: NinjaProfile = {
+  name: 'Ninja',
+  username: 'ninja',
+  bio: 'توصيل البقالة في دقائق 🛵 | عروض حصرية كل يوم',
+  avatar: '/ninja.webp',
+  followers: 128000,
+  following: 42,
+};
+
+const DEFAULT_CAMPAIGN: NinjaCampaign = {
+  status: 'draft',
+  image: '',
+  title: '',
+  description: '',
+  hashtag: '#العيد_يجمعنا_ونينجا_يجمعنا',
+  updatedAt: 0,
+};
 
 /* ============================================================
  * Provider
@@ -488,6 +533,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   );
 
   // ---- Effective appearance ----
+  // Default is light. 'auto' (off unless the user picks it) tracks clock hour.
   const isDark = useMemo(() => {
     if (settings.appearance === 'dark') return true;
     if (settings.appearance === 'light') return false;
@@ -498,6 +544,28 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSettings((prev) => (prev.darkMode === isDark ? prev : { ...prev, darkMode: isDark }));
   }, [isDark]);
+
+  // ---- Ninja campaign (shared between Instagram and X) ----
+  const [ninjaCampaign, setNinjaCampaign] = useState<NinjaCampaign>(DEFAULT_CAMPAIGN);
+  const [ninjaProfile, setNinjaProfile] = useState<NinjaProfile>(DEFAULT_NINJA_PROFILE);
+
+  useEffect(() => {
+    const storedCampaign = loadJSON<NinjaCampaign | null>('ninja-campaign', null);
+    if (storedCampaign) setNinjaCampaign({ ...DEFAULT_CAMPAIGN, ...storedCampaign });
+    const storedProfile = loadJSON<NinjaProfile | null>('ninja-profile', null);
+    if (storedProfile) setNinjaProfile({ ...DEFAULT_NINJA_PROFILE, ...storedProfile });
+  }, []);
+
+  useEffect(() => saveJSON('ninja-campaign', ninjaCampaign), [ninjaCampaign]);
+  useEffect(() => saveJSON('ninja-profile', ninjaProfile), [ninjaProfile]);
+
+  const updateNinjaCampaign = useCallback((patch: Partial<NinjaCampaign>) => {
+    setNinjaCampaign((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const updateNinjaProfile = useCallback((patch: Partial<NinjaProfile>) => {
+    setNinjaProfile((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   // ---- Wallpaper operations ----
   const setWallpaper = useCallback((target: WallpaperTarget, value: string) => {
@@ -609,6 +677,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         removedApps,
         locked,
         setLocked,
+        ninjaCampaign,
+        updateNinjaCampaign,
+        ninjaProfile,
+        updateNinjaProfile,
       }}
     >
       {children}

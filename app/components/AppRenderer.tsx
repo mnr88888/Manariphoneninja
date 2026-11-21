@@ -21,6 +21,8 @@ import WeatherApp from '../apps/weather/WeatherApp';
 import FilesApp from '../apps/files/FilesApp';
 import TerminalApp from '../apps/terminal/TerminalApp';
 import NinjaApp from '../apps/ninja/NinjaApp';
+import InstagramApp from '../apps/instagram/InstagramApp';
+import XApp from '../apps/x/XApp';
 
 function renderApp(appId: string): React.ReactNode {
   switch (appId) {
@@ -57,6 +59,10 @@ function renderApp(appId: string): React.ReactNode {
       return <FilesApp />;
     case 'terminal':
       return <TerminalApp />;
+    case 'instagram':
+      return <InstagramApp />;
+    case 'x':
+      return <XApp />;
     case 'ninja':
       return <NinjaApp />;
     default:
