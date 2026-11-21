@@ -2,7 +2,6 @@ import {
   MessageCircle,
   Phone,
   Compass,
-  Music,
   Image as ImageIcon,
   Camera,
   Settings,
@@ -11,7 +10,6 @@ import {
   CloudSun,
   Folder,
   Calculator,
-  MapPin,
   Terminal,
   Clock,
   Users,
@@ -77,14 +75,6 @@ export const APPS: AppDefinition[] = [
     imageIcon: '/safari.webp',
     gradient: 'from-[#E8F0FE] to-[#C2D7FF]',
     iconColor: 'text-[#1573E6]',
-  },
-  {
-    id: 'music',
-    name: 'الموسيقى',
-    icon: Music,
-    imageIcon: '/music.webp',
-    gradient: 'from-[#FF2D55] to-[#FF375F]',
-    iconColor: 'text-white',
   },
   {
     id: 'photos',
@@ -167,14 +157,6 @@ export const APPS: AppDefinition[] = [
     iconColor: 'text-white',
   },
   {
-    id: 'maps',
-    name: 'الخرائط',
-    icon: MapPin,
-    imageIcon: '/maps.webp',
-    gradient: 'from-[#A8E063] to-[#56AB2F]',
-    iconColor: 'text-white',
-  },
-  {
     id: 'terminal',
     name: 'الطرفية',
     icon: Terminal,
@@ -192,21 +174,21 @@ export const APPS: AppDefinition[] = [
   },
   // --- Dock apps ---
   {
+    id: 'whatsapp-dock',
+    name: 'واتساب',
+    icon: MessageCircle,
+    imageIcon: '/whatsapp.webp',
+    gradient: 'from-[#25D366] to-[#128C7E]',
+    iconColor: 'text-white',
+    inDock: true,
+  },
+  {
     id: 'safari-dock',
     name: 'سفاري',
     icon: Compass,
     imageIcon: '/safari.webp',
     gradient: 'from-[#E8F0FE] to-[#C2D7FF]',
     iconColor: 'text-[#1573E6]',
-    inDock: true,
-  },
-  {
-    id: 'music-dock',
-    name: 'الموسيقى',
-    icon: Music,
-    imageIcon: '/music.webp',
-    gradient: 'from-[#FF2D55] to-[#FF375F]',
-    iconColor: 'text-white',
     inDock: true,
   },
   {
@@ -220,8 +202,8 @@ export const APPS: AppDefinition[] = [
   },
 ];
 
-/** Dock app ids in display order */
-export const DOCK_APPS = ['phone', 'safari-dock', 'messages-dock', 'music-dock'];
+/** Dock app ids in display order: WhatsApp, Safari, Messages, Phone */
+export const DOCK_APPS = ['whatsapp-dock', 'safari-dock', 'messages-dock', 'phone'];
 
 /** Home screen (non-dock) app ids in display order */
 export const HOME_APPS = APPS.filter((a) => !a.inDock).map((a) => a.id);
@@ -232,7 +214,7 @@ export function getApp(id: string): AppDefinition | undefined {
 
 /** Map dock duplicate ids back to their canonical app for rendering */
 export const DOCK_APP_MAP: Record<string, string> = {
+  'whatsapp-dock': 'whatsapp',
   'safari-dock': 'safari',
-  'music-dock': 'music',
   'messages-dock': 'messages',
 };

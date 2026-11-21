@@ -209,9 +209,19 @@ export default function HomeScreen() {
         </div>
       )}
 
-      {/* Dock — fixed across all pages */}
+      {/* Dock — fixed across all pages, Liquid Glass */}
       <div className="relative z-10 px-4 pb-3">
-        <div className="rounded-[28px] border border-white/10 bg-white/15 p-3 backdrop-blur-2xl">
+        <div
+          className="rounded-[30px] border border-white/20 p-3"
+          style={{
+            background:
+              'linear-gradient(150deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.14) 100%)',
+            backdropFilter: 'blur(28px) saturate(1.6)',
+            WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
+            boxShadow:
+              '0 10px 34px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(255,255,255,0.08)',
+          }}
+        >
           <div className="flex items-end justify-around gap-2">
             {dockApps.map((app) => {
               const openId = DOCK_APP_MAP[app.id] ?? app.id;
