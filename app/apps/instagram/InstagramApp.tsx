@@ -439,3 +439,193 @@ export default function InstagramApp() {
       </div>
     );
   };
+    // Messages
+  const renderMessages = () => (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden" dir="rtl">
+      <header className={`flex items-center justify-between border-b px-4 py-3 ${border}`}>
+        <button onClick={() => setTab('home')}><ChevronRight className={text} /></button>
+        <b className={`text-lg ${text}`}>ninja</b>
+        <Settings className={text} />
+      </header>
+      <div className={`border-b p-3 ${border}`}>
+        <input placeholder="بحث في الرسائل" className={`w-full rounded-lg p-2 ${soft} ${text}`} />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex items-center gap-3 p-4">
+          <img src={NINJA_AVATAR} alt="" className="h-12 w-12 rounded-full object-cover" />
+          <div>
+            <b className={`text-sm ${text}`}>رسائل نينجا</b>
+            <p className={`text-xs ${muted}`}>صندوق الرسائل التجريبي</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Post detail viewer
+  const PostViewer = () => {
+    if (!activePost) return null;
+
+    const current = feedPosts.find(p => p.id === activePost.id) || activePost;
+
+    return (
+      <div className={`absolute inset-0 z-[75] flex flex-col ${bg}`} dir="rtl">
+        <header className={`flex h-14 items-center justify-between border-b px-4 ${border}`}>
+          <button onClick={() => setModal(null)}><ChevronRight className={text} /></button>
+          <b className={text}>المنشور</b>
+          <button onClick={() => { setMenuPost(current); setModal(null); }}>
+            <MoreHorizontal className={text} />
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          {renderPost(current)}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`absolute inset-0 flex flex-col overflow-hidden ${bg}`} dir="rtl">
+      <div className="h-12 shrink-0" />
+
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {tab === 'home' && renderHome()}
+        {tab === 'explore' && renderExplore()}
+        {tab === 'reels' && renderReels()}
+        {tab === 'activity' && renderActivity()}
+        {tab === 'profile' && renderProfile()}
+        {tab === 'messages' && renderMessages()}
+      </main>
+
+      {tab !== 'messages' && (
+        <nav className={`flex shrink-0 items-center justify-around border-t py-2 ${border} ${bg}`}>
+          {[
+            { id: 'home' as Tab, icon: Home, label: 'الرئيسية' },
+            { id: 'explore' as Tab, icon: Search, label: 'بحث' },
+            { id: 'reels' as Tab, icon: Clapperboard, label: 'ريلز' },
+            { id: 'activity' as Tab, icon: Heart, label: 'النشاط' },
+            { id: 'profile' as Tab, icon: User, label: 'الملف الشخصي' },
+          ].map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                aria-label={item.label}
+                className={`${text} ${tab === item.id ? 'opacity-100' : 'opacity-45'}`}
+              >
+                <Icon size={24} strokeWidth={tab === item.id ? 2.5 : 1.8} />
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {modal === 'campaign' && <CampaignEditor />}
+      {modal === 'profile' && <ProfileEditor />}
+      {modal === 'story' && <StoryViewer />}
+      {modal === 'edit-post' && <EditPost />}
+      {modal === 'post' && <PostViewer />}
+
+      {modal === 'comments' && activePost && (
+        <CommentsSheet
+          post={activePost}
+          isDark={isDark}
+          bg={bg}
+          text={text}
+          muted={muted}
+          border={border}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {menuPost && <PostMenu />}
+    </div>
+  );
+}
+
+function CommentsSheet({
+  post,
+  isDark,
+  bg,
+  text,
+  muted,
+  border,
+  onClose,
+}: {
+  post: IGPost;
+  isDark: boolean;
+  bg: string;
+  text: string;
+  muted: string;
+  border: string;
+  onClose: () => void;
+}) {
+  const [comments, setComments] = useState(post.comments);
+  const [draft, setDraft] = useState('');
+
+  const addComment = () => {
+    if (!draft.trim()) return;
+
+    setComments(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        author: 'Ninja',
+        text: draft.trim(),
+      },
+    ]);
+
+    setDraft('');
+  };
+
+  return (
+    <div
+      className="absolute inset-0 z-[110] flex flex-col justify-end bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className={`max-h-[75%] overflow-y-auto rounded-t-3xl p-4 ${bg}`}
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+      >
+        <div className={`mx-auto mb-4 h-1.5 w-12 rounded-full ${isDark ? 'bg-white/20' : 'bg-black/15'}`} />
+
+        <div className={`flex items-center justify-between border-b pb-3 ${border}`}>
+          <b className={text}>التعليقات</b>
+          <button onClick={onClose} aria-label="إغلاق التعليقات">
+            <X className={text} />
+          </button>
+        </div>
+
+        {comments.map(comment => (
+          <div key={comment.id} className="py-3 text-sm">
+            <b className={text}>{comment.author}</b>
+            <span className={`mr-2 ${text}`}>{comment.text}</span>
+          </div>
+        ))}
+
+        {!comments.length && (
+          <p className={`py-8 text-center text-sm ${muted}`}>
+            لا توجد تعليقات بعد
+          </p>
+        )}
+
+        <div className={`mt-2 flex items-center gap-2 rounded-full border px-3 py-2 ${border}`}>
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') addComment();
+            }}
+            placeholder="أضيفي تعليقاً..."
+            className={`flex-1 bg-transparent text-sm outline-none ${text}`}
+          />
+          <button onClick={addComment} className="text-sm font-semibold text-[#0095f6]">
+            نشر
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
