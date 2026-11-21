@@ -24,6 +24,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { usePersistentState, uid, formatArabicTime } from '../shared/utils';
+import { useSystem } from '../../system/SystemContext';
+import { useOS } from '../../OSContext';
 
 /* ============================================================
  * Types & sample data
@@ -147,6 +149,8 @@ interface WARecentCall {
 export default function WhatsAppApp() {
   const [chats, setChats] = usePersistentState<WAChat[]>('wa-chats', SAMPLE_CHATS);
   const [contacts] = usePersistentState<WAContact[]>('wa-contacts', SAMPLE_CONTACTS);
+  const { pendingDeepLink, consumeDeepLink, setBadge, badges, settings } = useSystem();
+  const { openApp, activeApp } = useOS();
   const [tab, setTab] = useState<'chats' | 'calls' | 'status' | 'settings'>('chats');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -190,6 +194,55 @@ export default function WhatsAppApp() {
       if (recInterval.current) clearInterval(recInterval.current);
     };
   }, [recording]);
+
+  // Reload chats when the simulator engine writes a new incoming message
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const raw = localStorage.getItem('wa-chats');
+        if (raw) setChats(JSON.parse(raw));
+      } catch {
+        // ignore malformed storage
+      }
+    };
+    window.addEventListener('wa-sim-message', reload);
+    return () => window.removeEventListener('wa-sim-message', reload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setChats]);
+
+  // Sync the system WhatsApp badge with real unread count
+  const totalUnread = chats.reduce((s, c) => s + c.unread, 0);
+  useEffect(() => {
+    if (badges.whatsapp !== totalUnread) {
+      setBadge('whatsapp', totalUnread);
+    }
+  }, [totalUnread, badges.whatsapp, setBadge]);
+
+  // Deep link from Notification Center: open the exact conversation
+  useEffect(() => {
+    if (
+      pendingDeepLink &&
+      pendingDeepLink.appId === 'whatsapp' &&
+      pendingDeepLink.targetId
+    ) {
+      const chatId = pendingDeepLink.targetId;
+      setTab('chats');
+      setActiveChatId(chatId);
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, unread: 0 } : c))
+      );
+      consumeDeepLink();
+    }
+  }, [pendingDeepLink, consumeDeepLink, setChats]);
+
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (activeChatId && activeApp === 'whatsapp') {
+      setChats((prev) =>
+        prev.map((c) => (c.id === activeChatId ? { ...c, unread: 0 } : c))
+      );
+    }
+  }, [activeChatId, activeApp, setChats]);
 
   const getContact = (id: string) => contacts.find((c) => c.id === id);
 

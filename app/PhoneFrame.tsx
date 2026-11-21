@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';import { OSProvider, useOS } from './OSContext';
+import { useEffect, useState } from 'react';
+import { OSProvider, useOS } from './OSContext';
 import { SystemProvider, useSystem } from './system/SystemContext';
 import StatusBar from './components/StatusBar';
 import HomeScreen from './components/HomeScreen';
@@ -11,13 +12,23 @@ import ControlCenter from './components/ControlCenter';
 import NotificationCenter from './components/NotificationCenter';
 import LockScreen from './components/LockScreen';
 import DynamicIsland from './components/DynamicIsland';
+import { useWhatsAppSimulation } from './system/whatsappSimulation';
+import HomeIndicator from './components/HomeIndicator';
 
 type Overlay = 'none' | 'control' | 'notifications';
 
 function PhoneShell() {
-  const { activeApp, recentApps, screenMode, closing } = useOS();
+  const { activeApp, recentApps, screenMode, closing, goToHome, openSwitcher } = useOS();
   const { locked, settings } = useSystem();
   const [overlay, setOverlay] = useState<Overlay>('none');
+
+  useWhatsAppSimulation();
+
+  // Continuous home-indicator drag: progress 0..1 while dragging up from the
+  // home indicator area. The open app visually follows the finger.
+  const [dragProgress, setDragProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
+  const [dragMode, setDragMode] = useState<'home' | 'switcher'>('home');
 
   const homeAnim = screenMode === 'switcher' ? 'home-shrink' : '';
 
@@ -49,6 +60,8 @@ function PhoneShell() {
           key={appId}
           appId={appId}
           active={appId === activeApp && screenMode === 'app'}
+          dragProgress={dragActive && appId === activeApp ? dragProgress : 0}
+          dragMode={dragMode}
         />
       ))}
 
@@ -77,6 +90,23 @@ function PhoneShell() {
         onOpenNotificationCenter={() => setOverlay('notifications')}
         systemOverlayOpen={overlay !== 'none'}
         onCloseSystemOverlay={() => setOverlay('none')}
+      />
+
+      {/* Interactive home indicator */}
+      <HomeIndicator
+        onDragProgress={(progress, mode) => {
+          setDragActive(true);
+          setDragProgress(progress);
+          setDragMode(mode);
+        }}
+        onDragEnd={(progress, mode) => {
+          setDragActive(false);
+          setDragProgress(0);
+          if (progress >= 1) {
+            if (mode === 'switcher') openSwitcher();
+            else goToHome();
+          }
+        }}
       />
     </div>
   );

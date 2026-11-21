@@ -15,12 +15,10 @@ import CameraApp from '../apps/camera/CameraApp';
 import CalendarApp from '../apps/calendar/CalendarApp';
 import NotesApp from '../apps/notes/NotesApp';
 import ClockApp from '../apps/clock/ClockApp';
-import MusicApp from '../apps/music/MusicApp';
 import ContactsApp from '../apps/contacts/ContactsApp';
 import MailApp from '../apps/mail/MailApp';
 import WeatherApp from '../apps/weather/WeatherApp';
 import FilesApp from '../apps/files/FilesApp';
-import MapsApp from '../apps/maps/MapsApp';
 import TerminalApp from '../apps/terminal/TerminalApp';
 import NinjaApp from '../apps/ninja/NinjaApp';
 
@@ -49,9 +47,6 @@ function renderApp(appId: string): React.ReactNode {
       return <NotesApp />;
     case 'clock':
       return <ClockApp />;
-    case 'music':
-    case 'music-dock':
-      return <MusicApp />;
     case 'contacts':
       return <ContactsApp />;
     case 'mail':
@@ -60,8 +55,6 @@ function renderApp(appId: string): React.ReactNode {
       return <WeatherApp />;
     case 'files':
       return <FilesApp />;
-    case 'maps':
-      return <MapsApp />;
     case 'terminal':
       return <TerminalApp />;
     case 'ninja':
@@ -78,9 +71,14 @@ function renderApp(appId: string): React.ReactNode {
 export default function AppRenderer({
   appId,
   active,
+  dragProgress = 0,
+  dragMode = 'home',
 }: {
   appId: string;
   active: boolean;
+  /** 0..1 continuous home-indicator drag progress */
+  dragProgress?: number;
+  dragMode?: 'home' | 'switcher';
 }) {
   const { closing, opening, screenMode } = useOS();
   const { isDark } = useSystem();
@@ -97,13 +95,24 @@ export default function AppRenderer({
   }
 
   const isHidden = !active;
+  // Continuous drag: scale down + fade + round corners as the finger pulls up
+  const dragging = active && dragProgress > 0;
+  const scale = dragging ? 1 - 0.18 * dragProgress : 1;
+  const opacity = dragging ? 1 - 0.35 * dragProgress : 1;
+  const radius = dragging ? 12 + 40 * dragProgress : 0;
 
   return (
     <div
       className={`absolute inset-0 z-30 ${animClass} ${isDark ? 'dark-shell' : ''}`}
       style={{
         visibility: isHidden ? 'hidden' : 'visible',
-        pointerEvents: isHidden ? 'none' : 'auto',
+        pointerEvents: isHidden || dragging ? 'none' : 'auto',
+        transform: dragging ? `scale(${scale})` : undefined,
+        opacity: dragging ? opacity : undefined,
+        borderRadius: dragging ? radius : undefined,
+        overflow: dragging ? 'hidden' : undefined,
+        transformOrigin: 'center center',
+        transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.32,0.72,0,1), opacity 0.3s, border-radius 0.3s',
       }}
     >
       {renderApp(appId)}

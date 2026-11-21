@@ -64,6 +64,10 @@ export interface SystemSettings {
   notifBadges: boolean;
   /** Home screen icon appearance mode */
   iconAppearance: 'light' | 'dark' | 'tinted' | 'auto';
+  showBatteryPercentage: boolean;
+  lowPowerMode: boolean;
+  /** Automatic simulated incoming WhatsApp messages */
+  whatsappAutoMessages: boolean;
   // Per-app notification permissions (appId -> enabled)
   appNotifs: Record<string, boolean>;
 }
@@ -168,6 +172,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   notifGrouped: true,
   notifBadges: true,
   iconAppearance: 'light',
+  showBatteryPercentage: true,
+  lowPowerMode: false,
+  whatsappAutoMessages: true,
   appNotifs: {},
 };
 

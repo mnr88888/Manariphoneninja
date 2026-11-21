@@ -256,6 +256,10 @@ export default function SettingsApp() {
           <Section header="الإشعارات الحالية">
             <ListRow title={notifications.length ? `${notifications.length} إشعار` : 'لا توجد إشعارات'} accessory={notifications.length > 0 ? <button onClick={clearNotifications} className="text-[13px] text-red-500">مسح الكل</button> : undefined} lastInSection />
           </Section>
+
+          <Section header="رسائل واتساب التلقائية" footer="استلام رسائل واتساب تجريبية من جهات اتصال محاكية بشكل دوري.">
+            <ListRow title="رسائل واردة تلقائية" accessory={<Toggle on={settings.whatsappAutoMessages !== false} onChange={(v) => updateSettings({ whatsappAutoMessages: v })} />} lastInSection />
+          </Section>
         </div>
       </div>
     );
@@ -438,6 +442,7 @@ export default function SettingsApp() {
                   {uploadedWallpapers.map((u) => (
                     <div key={u.slice(-30)} className="relative">
                       <button onClick={() => setWallpaper(previewTarget, u)} className="block w-full overflow-hidden rounded-lg">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={u} alt="خلفية مرفوعة" className="h-20 w-full object-cover" />
                       </button>
                       <button
@@ -514,7 +519,8 @@ export default function SettingsApp() {
             </div>
           </Section>
           <Section header="خيارات الطاقة">
-            <ListRow title="وضع الطاقة المنخفضة" accessory={<Toggle on={settings.focusMode} onChange={(v) => updateSettings({ focusMode: v })} />} />
+            <ListRow title="وضع الطاقة المنخفضة" accessory={<Toggle on={settings.lowPowerMode} onChange={(v) => updateSettings({ lowPowerMode: v })} />} />
+            <ListRow title="نسبة البطارية" accessory={<Toggle on={settings.showBatteryPercentage} onChange={(v) => updateSettings({ showBatteryPercentage: v })} />} />
             <ListRow title="سطوع تلقائي" accessory={<Toggle on onChange={() => {}} />} lastInSection />
           </Section>
         </div>
