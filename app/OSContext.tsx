@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, {
@@ -12,17 +13,11 @@ import React, {
 export type ScreenMode = 'home' | 'app' | 'switcher';
 
 export interface OSState {
-  /** Currently active app id, or null when on home screen */
   activeApp: string | null;
-  /** Recently opened apps, most-recent first (for app switcher) */
   recentApps: string[];
-  /** Per-app preserved state */
   appStates: Record<string, unknown>;
-  /** Current screen mode */
   screenMode: ScreenMode;
-  /** Whether the open app is animating closed */
   closing: boolean;
-  /** Whether an app is animating open */
   opening: boolean;
 }
 
@@ -47,6 +42,7 @@ export function OSProvider({ children }: { children: ReactNode }) {
   const [screenMode, setScreenMode] = useState<ScreenMode>('home');
   const [closing, setClosing] = useState(false);
   const [opening, setOpening] = useState(false);
+
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const clearTimers = useCallback(() => {
@@ -55,28 +51,27 @@ export function OSProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const pushRecent = useCallback((appId: string) => {
-    setRecentApps((prev) => [appId, ...prev.filter((id) => id !== appId)]);
+    setRecentApps(prev => [appId, ...prev.filter(id => id !== appId)]);
   }, []);
 
-  const openApp = useCallback(
-    (appId: string) => {
-      clearTimers();
-      setClosing(false);
-      setOpening(true);
-      setActiveApp(appId);
-      setScreenMode('app');
-      pushRecent(appId);
-      timers.current.push(
-        setTimeout(() => setOpening(false), 320)
-      );
-    },
-    [clearTimers, pushRecent]
-  );
+  const openApp = useCallback((appId: string) => {
+    clearTimers();
+    setClosing(false);
+    setOpening(true);
+    setActiveApp(appId);
+    setScreenMode('app');
+    pushRecent(appId);
+
+    timers.current.push(
+      setTimeout(() => setOpening(false), 320)
+    );
+  }, [clearTimers, pushRecent]);
 
   const closeApp = useCallback(() => {
     clearTimers();
     setClosing(true);
     setScreenMode('home');
+
     timers.current.push(
       setTimeout(() => {
         setClosing(false);
@@ -92,54 +87,58 @@ export function OSProvider({ children }: { children: ReactNode }) {
   const openSwitcher = useCallback(() => {
     clearTimers();
     setClosing(false);
+    setOpening(false);
     setScreenMode('switcher');
   }, [clearTimers]);
 
   const closeSwitcher = useCallback(() => {
     clearTimers();
-    if (activeApp) {
-      setScreenMode('app');
-    } else {
+    setScreenMode(activeApp ? 'app' : 'home');
+  }, [activeApp, clearTimers]);
+
+  const switchToApp = useCallback((appId: string) => {
+    clearTimers();
+    setClosing(false);
+    setOpening(true);
+    setActiveApp(appId);
+    setScreenMode('app');
+    pushRecent(appId);
+
+    timers.current.push(
+      setTimeout(() => setOpening(false), 320)
+    );
+  }, [clearTimers, pushRecent]);
+
+  // Completely remove an app from the recent apps list.
+  const killApp = useCallback((appId: string) => {
+    clearTimers();
+
+    setRecentApps(prev => prev.filter(id => id !== appId));
+
+    setAppStates(prev => {
+      const next = { ...prev };
+      delete next[appId];
+      return next;
+    });
+
+    if (activeApp === appId) {
+      setClosing(false);
+      setOpening(false);
+      setActiveApp(null);
       setScreenMode('home');
     }
   }, [activeApp, clearTimers]);
 
-  const switchToApp = useCallback(
-    (appId: string) => {
-      clearTimers();
-      setClosing(false);
-      setOpening(true);
-      setActiveApp(appId);
-      setScreenMode('app');
-      pushRecent(appId);
-      timers.current.push(setTimeout(() => setOpening(false), 320));
-    },
-    [clearTimers, pushRecent]
-  );
-
-  const killApp = useCallback(
-    (appId: string) => {
-      setRecentApps((prev) => prev.filter((id) => id !== appId));
-      setAppStates((prev) => {
-        const next = { ...prev };
-        delete next[appId];
-        return next;
-      });
-      setActiveApp((curr) => (curr === appId ? null : curr));
-      setScreenMode((curr) => {
-        if (curr === 'app' && activeApp === appId) return 'home';
-        return curr;
-      });
-    },
-    [activeApp]
-  );
-
   const setAppState = useCallback((appId: string, state: unknown) => {
-    setAppStates((prev) => ({ ...prev, [appId]: state }));
+    setAppStates(prev => ({
+      ...prev,
+      [appId]: state,
+    }));
   }, []);
 
   const getAppState = useCallback(
-    <T,>(appId: string): T | undefined => appStates[appId] as T | undefined,
+    <T,>(appId: string): T | undefined =>
+      appStates[appId] as T | undefined,
     [appStates]
   );
 
@@ -170,6 +169,10 @@ export function OSProvider({ children }: { children: ReactNode }) {
 
 export function useOS() {
   const ctx = useContext(OSContext);
-  if (!ctx) throw new Error('useOS must be used within OSProvider');
+
+  if (!ctx) {
+    throw new Error('useOS must be used within OSProvider');
+  }
+
   return ctx;
 }
