@@ -1,579 +1,705 @@
+
 'use client';
 
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
-  Home,
-  Search,
-  Clapperboard,
-  Heart,
-  Send,
-  MessageCircle,
-  Bookmark,
-  MoreHorizontal,
-  Plus,
-  ChevronRight,
-  X,
-  User,
+  Home, Search, Clapperboard, Heart, Send, MessageCircle,
+  Bookmark, MoreHorizontal, Plus, X, User, Grid3X3,
+  Camera, Settings, ChevronLeft, ImagePlus
 } from 'lucide-react';
+
 import { useSystem } from '../../system/SystemContext';
 import { usePersistentState, formatRelativeTime, toArabicDigits } from '../shared/utils';
 
-/* ============================================================
- * Types & seed data
- * ============================================================ */
+/* =====================================================
+   NINJA POSTS
+   عدّلي الصور والعناوين والأوصاف من هنا فقط.
+   image: ضعي مسار الصورة داخل public.
+   مثال: /images/ninja-post-1.jpg
+===================================================== */
 
 interface IGPost {
   id: string;
   author: string;
   avatar: string;
   image: string;
+  title: string;
   caption: string;
   likes: number;
   liked: boolean;
   saved: boolean;
   comments: { id: string; author: string; text: string }[];
   timestamp: number;
-  isCampaign?: boolean;
 }
 
-const SEED_POSTS: IGPost[] = [
+const NINJA_POSTS: IGPost[] = [
   {
-    id: 'ig1',
-    author: 'نورة القحطاني',
-    avatar: '#007AFF',
-    image: '/wallpapers/ios26-sunrise.webp',
-    caption: 'شروق اليوم كان شي يذكر 🌅',
-    likes: 342,
-    liked: false,
-    saved: false,
-    comments: [{ id: 'c1', author: 'سارة', text: 'ما شاء الله! 🔥' }],
-    timestamp: Date.now() - 3600000,
-  },
-  {
-    id: 'ig2',
-    author: 'خالد المطيري',
-    avatar: '#5856D6',
-    image: '/wallpapers/ios26-emerald.webp',
-    caption: 'جولة مسائية في الجبال 🏔️',
-    likes: 891,
+    id: 'ninja-1',
+    author: 'Ninja',
+    avatar: '/ninja.webp',
+    image: '',
+    title: 'عنوان المنشور الأول',
+    caption: 'اكتبي وصف منشور نينجا هنا ✨',
+    likes: 1280,
     liked: false,
     saved: false,
     comments: [],
-    timestamp: Date.now() - 5 * 3600000,
+    timestamp: Date.now() - 3600000,
+  },
+  {
+    id: 'ninja-2',
+    author: 'Ninja',
+    avatar: '/ninja.webp',
+    image: '',
+    title: 'عنوان المنشور الثاني',
+    caption: 'اكتبي وصف المنشور الثاني هنا',
+    likes: 950,
+    liked: false,
+    saved: false,
+    comments: [],
+    timestamp: Date.now() - 7200000,
+  },
+  {
+    id: 'ninja-3',
+    author: 'Ninja',
+    avatar: '/ninja.webp',
+    image: '',
+    title: 'عنوان المنشور الثالث',
+    caption: 'اكتبي وصف المنشور الثالث هنا',
+    likes: 2100,
+    liked: false,
+    saved: false,
+    comments: [],
+    timestamp: Date.now() - 86400000,
   },
 ];
 
+/* =====================================================
+   STORIES
+   صور شخصية حقيقية بدل الحروف والأيقونات.
+===================================================== */
+
 const STORIES = [
-  { id: 's1', name: 'أنت', color: '#8E8E93' },
-  { id: 's2', name: 'نورة', color: '#007AFF' },
-  { id: 's3', name: 'أحمد', color: '#FF3B30' },
-  { id: 's4', name: 'فاطمة', color: '#FF9F0A' },
-  { id: 's5', name: 'سارة', color: '#FF2D55' },
-  { id: 's6', name: 'محمد', color: '#34C759' },
+  {
+    id: 'story-1',
+    name: 'Ninja',
+    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&h=160&fit=crop',
+  },
+  {
+    id: 'story-2',
+    name: 'سارة',
+    image: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=160&h=160&fit=crop',
+  },
+  {
+    id: 'story-3',
+    name: 'نورة',
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=160&h=160&fit=crop',
+  },
+  {
+    id: 'story-4',
+    name: 'فاطمة',
+    image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=160&h=160&fit=crop',
+  },
+  {
+    id: 'story-5',
+    name: 'محمد',
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&h=160&fit=crop',
+  },
+  {
+    id: 'story-6',
+    name: 'أحمد',
+    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=160&h=160&fit=crop',
+  },
 ];
 
 type Tab = 'home' | 'explore' | 'reels' | 'activity' | 'profile';
-type Modal = 'campaign' | 'profile-edit' | 'comments' | null;
 
-/* ============================================================
- * Instagram app
- * ============================================================ */
+function Avatar({
+  src,
+  name,
+  size = 'h-10 w-10',
+  ring = false,
+}: {
+  src?: string;
+  name: string;
+  size?: string;
+  ring?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className={`${size} shrink-0 rounded-full overflow-hidden flex items-center justify-center ${ring ? 'p-[2px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600' : 'bg-neutral-200'}`}>
+      {!failed && src ? (
+        <img
+          src={src}
+          alt={name}
+          onError={() => setFailed(true)}
+          className="h-full w-full rounded-full object-cover"
+        />
+      ) : (
+        <div className="h-full w-full rounded-full bg-neutral-800 flex items-center justify-center text-white font-bold">
+          {name.charAt(0)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InstagramApp() {
-  const { isDark, ninjaCampaign, updateNinjaCampaign, ninjaProfile, updateNinjaProfile } = useSystem();
+  const { isDark, ninjaProfile, updateNinjaProfile } = useSystem();
+
   const [tab, setTab] = useState<Tab>('home');
-  const [posts, setPosts] = usePersistentState<IGPost[]>('ig-posts', SEED_POSTS);
-  const [modal, setModal] = useState<Modal>(null);
-  const [activePost, setActivePost] = useState<IGPost | null>(null);
-
-  const bg = isDark ? 'bg-black' : 'bg-white';
-  const text = isDark ? 'text-white' : 'text-black';
-  const subText = isDark ? 'text-white/50' : 'text-black/50';
-  const border = isDark ? 'border-white/10' : 'border-black/10';
-
-  // Ensure the campaign post reflects the latest stored state in the feed
-  const feedPosts: IGPost[] = posts.map((p) =>
-    p.isCampaign
-      ? {
-          ...p,
-          author: ninjaProfile.name,
-          avatar: ninjaProfile.avatar,
-          image: ninjaCampaign.image || p.image,
-          caption: ninjaCampaign.description || p.caption,
-        }
-      : p
+  const [posts, setPosts] = usePersistentState<IGPost[]>(
+    'ig-ninja-posts-v2',
+    NINJA_POSTS
   );
 
-  const toggleLike = (id: string) =>
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p
+  const [editing, setEditing] = useState(false);
+  const [activePost, setActivePost] = useState<IGPost | null>(null);
+  const [story, setStory] = useState<typeof STORIES[number] | null>(null);
+  const [search, setSearch] = useState('');
+
+  const [name, setName] = useState(ninjaProfile.name);
+  const [bio, setBio] = useState(ninjaProfile.bio);
+  const [avatar, setAvatar] = useState(ninjaProfile.avatar);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const dark = isDark;
+  const bg = dark ? 'bg-black' : 'bg-white';
+  const surface = dark ? 'bg-[#121212]' : 'bg-white';
+  const text = dark ? 'text-white' : 'text-[#171717]';
+  const muted = dark ? 'text-white/50' : 'text-black/45';
+  const line = dark ? 'border-white/10' : 'border-black/10';
+
+  const validAvatar =
+    avatar && (
+      avatar.startsWith('http') ||
+      avatar.startsWith('/') ||
+      avatar.startsWith('data:')
+    )
+      ? avatar
+      : '/ninja.webp';
+
+  const toggleLike = (id: string) => {
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === id
+          ? {
+              ...p,
+              liked: !p.liked,
+              likes: p.likes + (p.liked ? -1 : 1),
+            }
+          : p
       )
     );
+  };
 
-  const toggleSave = (id: string) =>
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, saved: !p.saved } : p)));
-
-  /* ---------- Campaign editor ---------- */
-  const CampaignEditor = () => {
-    const [image, setImage] = useState(ninjaCampaign.image);
-    const [title, setTitle] = useState(ninjaCampaign.title);
-    const [desc, setDesc] = useState(ninjaCampaign.description);
-    const fileRef = useRef<HTMLInputElement>(null);
-
-    const pick = (f?: File) => {
-      if (!f) return;
-      const r = new FileReader();
-      r.onload = () => setImage(r.result as string);
-      r.readAsDataURL(f);
-    };
-
-    return (
-      <div className="absolute inset-0 z-50 flex flex-col" style={{ backgroundColor: bg }}>
-        <div className={`flex h-14 shrink-0 items-center justify-between border-b px-4 ${border}`}>
-          <button onClick={() => setModal(null)} className={text}>
-            <X className="h-5 w-5" />
-          </button>
-          <span className={`text-base font-bold ${text}`}>إدارة منشور الحملة</span>
-          <button
-            onClick={() => {
-              updateNinjaCampaign({ image, title, description: desc });
-              setModal(null);
-            }}
-            className="text-[15px] font-semibold text-[#0095F6]"
-          >
-            حفظ
-          </button>
-        </div>
-
-        <div className="no-scrollbar flex-1 overflow-y-auto p-4">
-          {/* Preview */}
-          <div className={`mb-4 overflow-hidden rounded-2xl border ${border}`}>
-            {image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={image} alt="معاينة" className="h-44 w-full object-cover" />
-            ) : (
-              <div className={`flex h-44 items-center justify-center ${isDark ? 'bg-white/5' : 'bg-black/5'} ${subText}`}>
-                لا صورة بعد
-              </div>
-            )}
-            <div className="p-3">
-              <p className={`text-[14px] font-bold ${text}`}>{title || 'العنوان'}</p>
-              <p className={`mt-1 text-[12px] ${subText}`}>{desc || 'الوصف'}</p>
-            </div>
-          </div>
-
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
-          <div className="flex gap-2">
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex-1 rounded-xl bg-[#0095F6] py-2.5 text-[14px] font-semibold text-white"
-            >
-              {image ? 'استبدال الصورة' : 'رفع صورة المنشور'}
-            </button>
-            {image && (
-              <button onClick={() => setImage('')} className={`rounded-xl px-4 py-2.5 text-[14px] font-semibold text-red-500 ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
-                حذف
-              </button>
-            )}
-          </div>
-
-          <label className={`mt-4 block text-[13px] font-semibold ${text}`}>عنوان المنشور</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-[14px] ${border} ${text} ${isDark ? 'bg-white/5' : 'bg-black/5'}`}
-            dir="rtl"
-          />
-
-          <label className={`mt-3 block text-[13px] font-semibold ${text}`}>الوصف</label>
-          <textarea
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            rows={4}
-            className={`mt-1 w-full resize-none rounded-xl border px-3 py-2.5 text-[14px] ${border} ${text} ${isDark ? 'bg-white/5' : 'bg-black/5'}`}
-            dir="rtl"
-          />
-
-          <p className={`mt-2 text-[12px] ${subText}`}>الحساب: Ninja · مقفل</p>
-
-          <button
-            onClick={() => {
-              updateNinjaCampaign({ image, title, description: desc, status: 'published', updatedAt: Date.now() });
-              if (!posts.some((p) => p.isCampaign)) {
-                setPosts((prev) => [
-                  {
-                    id: 'campaign',
-                    author: ninjaProfile.name,
-                    avatar: ninjaProfile.avatar,
-                    image: image || '/ninja.webp',
-                    caption: desc || ninjaCampaign.hashtag,
-                    likes: 0,
-                    liked: false,
-                    saved: false,
-                    comments: [],
-                    timestamp: Date.now(),
-                    isCampaign: true,
-                  },
-                  ...prev,
-                ]);
-              }
-              setModal(null);
-            }}
-            className="mt-5 w-full rounded-xl bg-[#0095F6] py-3 text-[15px] font-bold text-white"
-          >
-            {ninjaCampaign.status === 'published' ? 'تحديث المنشور' : 'نشر المنشور'}
-          </button>
-          {ninjaCampaign.status === 'published' && (
-            <button
-              onClick={() => {
-                setPosts((prev) => prev.filter((p) => !p.isCampaign));
-                updateNinjaCampaign({ status: 'draft' });
-              }}
-              className="mt-2 w-full rounded-xl py-3 text-[15px] font-bold text-red-500"
-              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
-            >
-              حذف المنشور المنشور
-            </button>
-          )}
-        </div>
-      </div>
+  const toggleSave = (id: string) => {
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === id ? { ...p, saved: !p.saved } : p
+      )
     );
   };
 
-  /* ---------- Profile edit ---------- */
-  const ProfileEditor = () => {
-    const [name, setName] = useState(ninjaProfile.name);
-    const [bio, setBio] = useState(ninjaProfile.bio);
-    const [avatar, setAvatar] = useState(ninjaProfile.avatar);
-    const fileRef = useRef<HTMLInputElement>(null);
+  const changeAvatar = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  /* ================= HEADER ================= */
+
+  const Header = () => (
+    <div className={`h-[54px] shrink-0 flex items-center justify-between px-4 border-b ${line}`}>
+      <button onClick={() => setEditing(true)}>
+        <Plus className={`h-6 w-6 ${text}`} />
+      </button>
+
+      <div className={`text-[23px] font-bold tracking-tight ${text}`}>
+        Instagram
+      </div>
+
+      <button onClick={() => setTab('activity')}>
+        <Heart className={`h-6 w-6 ${text}`} />
+      </button>
+    </div>
+  );
+
+  /* ================= STORIES ================= */
+
+  const Stories = () => (
+    <div className={`flex gap-4 overflow-x-auto px-3 py-3 border-b ${line} shrink-0`}>
+      {STORIES.map(s => (
+        <button
+          key={s.id}
+          onClick={() => setStory(s)}
+          className="flex flex-col items-center gap-1 shrink-0 w-[65px]"
+        >
+          <Avatar src={s.image} name={s.name} size="h-[62px] w-[62px]" ring />
+          <span className={`text-[11px] truncate max-w-full ${text}`}>
+            {s.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+
+  /* ================= POST IMAGE ================= */
+
+  const PostImage = ({ post }: { post: IGPost }) => {
+    const [failed, setFailed] = useState(false);
+
+    if (!post.image || failed) {
+      return (
+        <div className="aspect-square w-full bg-gradient-to-br from-[#111827] via-[#087E8B] to-[#31B6A2] flex flex-col items-center justify-center gap-3 text-white">
+          <div className="text-5xl font-black tracking-tight">Ninja</div>
+          <div className="text-sm opacity-80">{post.title}</div>
+          <div className="text-xs opacity-60">مكان تصميم منشور نينجا</div>
+        </div>
+      );
+    }
 
     return (
-      <div className="absolute inset-0 z-50 flex flex-col" style={{ backgroundColor: bg }}>
-        <div className={`flex h-14 shrink-0 items-center justify-between border-b px-4 ${border}`}>
-          <button onClick={() => setModal(null)} className={text}>
-            <X className="h-5 w-5" />
-          </button>
-          <span className={`text-base font-bold ${text}`}>تعديل الملف الشخصي</span>
-          <button
-            onClick={() => {
-              updateNinjaProfile({ name, bio, avatar });
-              setModal(null);
-            }}
-            className="text-[15px] font-semibold text-[#0095F6]"
-          >
-            حفظ
-          </button>
-        </div>
-        <div className="flex flex-col items-center gap-3 p-6">
-          <div className="h-20 w-20 overflow-hidden rounded-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={avatar} alt="" className="h-full w-full object-cover" />
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            const r = new FileReader();
-            r.onload = () => setAvatar(r.result as string);
-            r.readAsDataURL(f);
-          }} />
-          <button onClick={() => fileRef.current?.click()} className="text-[14px] font-semibold text-[#0095F6]">
-            تغيير صورة الملف
-          </button>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="الاسم"
-            className={`w-full rounded-xl border px-3 py-2.5 text-[14px] ${border} ${text} ${isDark ? 'bg-white/5' : 'bg-black/5'}`}
-            dir="rtl"
-          />
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="النبذة"
-            rows={3}
-            className={`w-full resize-none rounded-xl border px-3 py-2.5 text-[14px] ${border} ${text} ${isDark ? 'bg-white/5' : 'bg-black/5'}`}
-            dir="rtl"
-          />
-        </div>
-      </div>
+      <img
+        src={post.image}
+        alt={post.title}
+        onError={() => setFailed(true)}
+        className="w-full aspect-square object-cover"
+      />
     );
   };
 
-  /* ---------- Home feed ---------- */
-  const renderHome = () => (
-    <>
-      <div className={`flex shrink-0 items-center justify-between border-b px-4 pb-2 ${border}`}>
-        <h1 className={`text-xl font-bold ${text}`}>إنستغرام</h1>
-        <button onClick={() => setModal('campaign')} className="flex items-center gap-1 rounded-full bg-[#0095F6] px-3 py-1.5 text-[12px] font-semibold text-white">
-          <Plus className="h-3.5 w-3.5" />
-          حملة Ninja
+  /* ================= POST ================= */
+
+  const Post = ({ post }: { post: IGPost }) => (
+    <article className={`pb-3 border-b ${line}`}>
+      <div className="flex items-center gap-2.5 px-3 py-3">
+        <Avatar src={validAvatar} name={ninjaProfile.name} size="h-10 w-10" />
+        <div className="flex-1 text-right">
+          <p className={`text-[13px] font-bold ${text}`}>
+            {ninjaProfile.name || 'Ninja'}
+            <span className="text-[#3897F0] mr-1">✓</span>
+          </p>
+          <p className={`text-[10px] ${muted}`}>
+            {formatRelativeTime(post.timestamp)}
+          </p>
+        </div>
+        <button>
+          <MoreHorizontal className={`h-5 w-5 ${text}`} />
         </button>
       </div>
 
-      <div className="no-scrollbar flex-1 overflow-y-auto">
-        {/* Stories */}
-        <div className={`no-scrollbar flex gap-3 overflow-x-auto border-b px-3 py-3 ${border}`}>
-          {STORIES.map((s) => (
-            <div key={s.id} className="flex shrink-0 flex-col items-center gap-1">
-              <div className={`flex h-16 w-16 items-center justify-center rounded-full border-2 ${s.name === 'أنت' ? 'border-black/20' : 'border-[#E1306C]'} ${isDark ? 'border-[#E1306C]' : ''}`}>
-                <div className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold text-white" style={{ backgroundColor: s.color }}>
-                  {s.name[0]}
-                </div>
-              </div>
-              <span className={`text-[10px] ${text}`}>{s.name}</span>
-            </div>
-          ))}
-        </div>
+      <PostImage post={post} />
 
-        {/* Posts */}
-        {feedPosts.map((p) => (
-          <article key={p.id} className={`border-b pb-3 ${border}`}>
-            <div className="flex items-center gap-2.5 px-3 py-2.5">
-              <div className="h-9 w-9 overflow-hidden rounded-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.avatar} alt="" className="h-full w-full object-cover" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-[13px] font-bold ${text}`}>{p.author}</p>
-                <p className={`text-[10px] ${subText}`}>{formatRelativeTime(p.timestamp)}</p>
-              </div>
-              <MoreHorizontal className={`h-5 w-5 ${subText}`} />
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.image} alt="" className="w-full object-cover" style={{ maxHeight: 340 }} />
-            <div className="flex items-center gap-4 px-3 pt-2.5">
-              <button onClick={() => toggleLike(p.id)} className="active:scale-90">
-                <Heart className={`h-6 w-6 ${p.liked ? 'fill-[#FF3040] text-[#FF3040]' : text}`} />
-              </button>
-              <button onClick={() => { setActivePost(p); setModal('comments'); }} className={`active:scale-90 ${text}`}>
-                <MessageCircle className="h-6 w-6" />
-              </button>
-              <button className={`active:scale-90 ${text}`}>
-                <Send className="h-6 w-6" />
-              </button>
-              <button onClick={() => toggleSave(p.id)} className={`mr-auto active:scale-90 ${text}`}>
-                <Bookmark className={`h-6 w-6 ${p.saved ? 'fill-current' : ''}`} />
-              </button>
-            </div>
-            <div className="px-3 pt-1.5">
-              <p className={`text-[13px] font-bold ${text}`}>{toArabicDigits(p.likes)} إعجاب</p>
-              {p.caption && <p className={`mt-0.5 text-[13px] ${text}`}>{p.caption}</p>}
-              {p.comments.length > 0 && (
-                <button onClick={() => { setActivePost(p); setModal('comments'); }} className={`mt-1 text-[12px] ${subText}`}>
-                  عرض كل التعليقات ({toArabicDigits(p.comments.length)})
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
+      <div className="flex items-center gap-4 px-3 pt-3">
+        <button onClick={() => toggleLike(post.id)}>
+          <Heart className={`h-[25px] w-[25px] ${post.liked ? 'fill-red-500 text-red-500' : text}`} />
+        </button>
+
+        <button onClick={() => setActivePost(post)}>
+          <MessageCircle className={`h-[25px] w-[25px] ${text}`} />
+        </button>
+
+        <button>
+          <Send className={`h-[25px] w-[25px] ${text}`} />
+        </button>
+
+        <button onClick={() => toggleSave(post.id)} className="mr-auto">
+          <Bookmark className={`h-[25px] w-[25px] ${post.saved ? 'fill-current' : ''} ${text}`} />
+        </button>
       </div>
-    </>
+
+      <div className="px-3 pt-2" dir="rtl">
+        <p className={`text-[13px] font-bold ${text}`}>
+          {toArabicDigits(post.likes)} إعجاب
+        </p>
+
+        {post.title && (
+          <p className={`mt-1 text-[14px] font-bold ${text}`}>
+            {post.title}
+          </p>
+        )}
+
+        <p className={`mt-1 text-[13px] leading-6 ${text}`}>
+          <b>{ninjaProfile.name || 'Ninja'}</b>
+          {' '}
+          {post.caption}
+        </p>
+
+        {post.comments.length > 0 && (
+          <button
+            onClick={() => setActivePost(post)}
+            className={`mt-1 text-[12px] ${muted}`}
+          >
+            عرض التعليقات ({toArabicDigits(post.comments.length)})
+          </button>
+        )}
+      </div>
+    </article>
   );
 
-  /* ---------- Explore ---------- */
-  const renderExplore = () => (
+  /* ================= HOME ================= */
+
+  const HomePage = () => (
     <>
-      <div className={`shrink-0 px-3 py-2 border-b ${border}`}>
-        <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
-          <Search className={`h-4 w-4 ${subText}`} />
-          <input placeholder="بحث" className={`w-full bg-transparent text-[14px] outline-none ${text}`} dir="rtl" />
-        </div>
-      </div>
-      <div className="grid flex-1 grid-cols-3 gap-0.5 overflow-y-auto pt-0.5">
-        {feedPosts.concat(SEED_POSTS).map((p, i) => (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img key={p.id + i} src={p.image} alt="" className="aspect-square w-full object-cover" />
-        ))}
-      </div>
-    </>
-  );
-
-  /* ---------- Reels ---------- */
-  const renderReels = () => (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-black">
-      <Clapperboard className="h-12 w-12 text-white/40" />
-      <p className="text-[15px] font-semibold text-white">الريلز</p>
-      <p className="max-w-[240px] text-center text-[12px] text-white/50">
-        مقاطع فيديو قصيرة من الحسابات التي تتابعها
-      </p>
-    </div>
-  );
-
-  /* ---------- Activity ---------- */
-  const renderActivity = () => (
-    <>
-      <h1 className={`shrink-0 px-4 pb-2 text-xl font-bold ${text}`}>النشاط</h1>
+      <Header />
+      <Stories />
       <div className="flex-1 overflow-y-auto">
-        {feedPosts.map((p) => (
-          <div key={p.id} className={`flex items-center gap-3 px-4 py-3 border-b ${border}`}>
-            <Heart className="h-6 w-6 fill-[#FF3040] text-[#FF3040]" />
-            <p className={`flex-1 text-[13px] ${text}`}>
-              أعجب <b>{p.author}</b> بمنشورك
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.image} alt="" className="h-11 w-11 rounded object-cover" />
+        {posts.map(post => <Post key={post.id} post={post} />)}
+      </div>
+    </>
+  );
+
+  /* ================= EXPLORE ================= */
+
+  const ExplorePage = () => (
+    <>
+      <div className={`px-3 py-3 border-b ${line}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 ${dark ? 'bg-white/10' : 'bg-[#EFEFEF]'}`}>
+          <Search className={muted + ' h-5 w-5'} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="بحث عن نينجا..."
+            className={`flex-1 bg-transparent outline-none text-[13px] ${text}`}
+            dir="rtl"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-[2px] overflow-y-auto">
+        {posts.filter(p =>
+          (p.title + p.caption).includes(search)
+        ).map(post => (
+          <div key={post.id} className="aspect-square overflow-hidden">
+            <PostImage post={post} />
           </div>
         ))}
       </div>
     </>
   );
 
-  /* ---------- Profile ---------- */
-  const renderProfile = () => (
-    <div className="flex-1 overflow-y-auto">
-      <div className="flex items-center gap-5 px-4 pt-4">
-        <div className="h-20 w-20 overflow-hidden rounded-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ninjaProfile.avatar} alt="" className="h-full w-full object-cover" />
+  /* ================= REELS ================= */
+
+  const ReelsPage = () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-black text-white">
+      <Clapperboard className="h-12 w-12 opacity-50" />
+      <h2 className="text-lg font-bold">ريلز نينجا</h2>
+      <p className="text-xs text-white/50">مساحة مقاطع الفيديو القصيرة</p>
+    </div>
+  );
+
+  /* ================= ACTIVITY ================= */
+
+  const ActivityPage = () => (
+    <>
+      <div className={`px-4 py-4 text-xl font-bold ${text}`}>النشاط</div>
+      <div className="flex-1 overflow-y-auto">
+        {posts.map(post => (
+          <div key={post.id} className={`flex items-center gap-3 px-4 py-3 border-b ${line}`}>
+            <Avatar src={validAvatar} name={ninjaProfile.name} />
+            <p className={`flex-1 text-[13px] ${text}`} dir="rtl">
+              <b>{ninjaProfile.name || 'Ninja'}</b>
+              {' '}منشور جديد من نينجا
+            </p>
+            <div className="text-[#E1306C]">
+              <Heart className="h-5 w-5" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
+  /* ================= PROFILE ================= */
+
+  const ProfilePage = () => (
+    <>
+      <div className={`h-[54px] shrink-0 flex items-center justify-between px-4 border-b ${line}`}>
+        <button onClick={() => setEditing(true)}>
+          <Settings className={`h-5 w-5 ${text}`} />
+        </button>
+        <span className={`font-bold text-[16px] ${text}`}>
+          {ninjaProfile.name || 'Ninja'}
+        </span>
+        <button>
+          <Plus className={`h-6 w-6 ${text}`} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex items-center px-4 pt-5 gap-5">
+          <Avatar src={validAvatar} name={ninjaProfile.name} size="h-[82px] w-[82px]" />
+
+          <div className="flex flex-1 justify-around text-center">
+            {[
+              { value: posts.length, label: 'منشور' },
+              { value: ninjaProfile.followers, label: 'متابعون' },
+              { value: ninjaProfile.following, label: 'يتابع' },
+            ].map(item => (
+              <div key={item.label}>
+                <p className={`text-[17px] font-bold ${text}`}>
+                  {toArabicDigits(item.value)}
+                </p>
+                <p className={`text-[11px] ${muted}`}>{item.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-1 justify-around text-center">
-          {[
-            { v: toArabicDigits(12), l: 'منشورات' },
-            { v: toArabicDigits(ninjaProfile.followers), l: 'متابعون' },
-            { v: toArabicDigits(ninjaProfile.following), l: 'يتابع' },
-          ].map((s) => (
-            <div key={s.l}>
-              <p className={`text-[17px] font-bold ${text}`}>{s.v}</p>
-              <p className={`text-[11px] ${subText}`}>{s.l}</p>
+
+        <div className="px-4 pt-3" dir="rtl">
+          <p className={`text-[14px] font-bold ${text}`}>
+            {ninjaProfile.name || 'Ninja'}
+          </p>
+          <p className={`mt-1 text-[13px] leading-6 ${text}`}>
+            {ninjaProfile.bio}
+          </p>
+          <p className="text-[12px] text-[#3897F0]">ninja.sa</p>
+        </div>
+
+        <button
+          onClick={() => setEditing(true)}
+          className={`mx-4 mt-4 w-[calc(100%-32px)] rounded-lg py-2 text-[13px] font-semibold ${dark ? 'bg-white/10 text-white' : 'bg-[#EFEFEF] text-black'}`}
+        >
+          تعديل الملف الشخصي
+        </button>
+
+        <div className={`mt-5 flex items-center justify-around border-b ${line}`}>
+          <Grid3X3 className={`h-6 w-6 pb-1 border-b-2 ${text}`} />
+          <User className={`h-6 w-6 ${muted}`} />
+        </div>
+
+        <div className="grid grid-cols-3 gap-[2px]">
+          {posts.map(post => (
+            <div key={post.id} className="aspect-square overflow-hidden">
+              <PostImage post={post} />
             </div>
           ))}
         </div>
       </div>
-      <div className="px-4 pt-3">
-        <p className={`text-[14px] font-bold ${text}`}>{ninjaProfile.name}</p>
-        <p className={`text-[12px] ${subText}`}>{ninjaProfile.bio}</p>
-      </div>
-      <button
-        onClick={() => setModal('profile-edit')}
-        className={`mx-4 mt-3 w-[calc(100%-32px)] rounded-lg py-1.5 text-[13px] font-semibold ${isDark ? 'bg-white/10 text-white' : 'bg-black/5 text-black'}`}
-      >
-        تعديل الملف الشخصي
-      </button>
-      <div className="mt-3 grid grid-cols-3 gap-0.5">
-        {feedPosts.map((p, i) => (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img key={p.id + 'g' + i} src={p.image} alt="" className="aspect-square w-full object-cover" />
-        ))}
-      </div>
-    </div>
+    </>
   );
 
-  /* ---------- Root ---------- */
+  /* ================= BOTTOM NAV ================= */
+
+  const NAV = [
+    { id: 'home' as const, icon: Home },
+    { id: 'explore' as const, icon: Search },
+    { id: 'reels' as const, icon: Clapperboard },
+    { id: 'activity' as const, icon: Heart },
+    { id: 'profile' as const, icon: User },
+  ];
+
+  /* ================= MAIN ================= */
+
   return (
-    <div className={`absolute inset-0 flex flex-col ${bg}`}>
+    <div className={`absolute inset-0 flex flex-col overflow-hidden ${bg}`} dir="rtl">
       <div className="h-12 shrink-0" />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {tab === 'home' && renderHome()}
-        {tab === 'explore' && renderExplore()}
-        {tab === 'reels' && renderReels()}
-        {tab === 'activity' && renderActivity()}
-        {tab === 'profile' && renderProfile()}
-      </div>
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {tab === 'home' && <HomePage />}
+        {tab === 'explore' && <ExplorePage />}
+        {tab === 'reels' && <ReelsPage />}
+        {tab === 'activity' && <ActivityPage />}
+        {tab === 'profile' && <ProfilePage />}
+      </main>
 
-      {/* Bottom nav */}
-      <div className={`flex shrink-0 items-center justify-around border-t py-2 ${border} ${bg}`}>
-        {[
-          { id: 'home' as const, icon: <Home className="h-6 w-6" /> },
-          { id: 'explore' as const, icon: <Search className="h-6 w-6" /> },
-          { id: 'reels' as const, icon: <Clapperboard className="h-6 w-6" /> },
-          { id: 'activity' as const, icon: <Heart className="h-6 w-6" /> },
-          { id: 'profile' as const, icon: <User className="h-6 w-6" /> },
-        ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`${text} ${tab === t.id ? 'opacity-100' : 'opacity-40'} active:scale-90`}
-          >
-            {t.icon}
-          </button>
-        ))}
-      </div>
+      <nav className={`h-[54px] shrink-0 flex items-center justify-around border-t ${line} ${surface}`}>
+        {NAV.map(item => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={`flex h-full flex-1 items-center justify-center transition-all active:scale-90 ${tab === item.id ? text : muted}`}
+            >
+              <Icon
+                className="h-[25px] w-[25px]"
+                strokeWidth={tab === item.id ? 2.5 : 1.8}
+                fill={item.id === 'activity' && tab === 'activity' ? 'currentColor' : 'none'}
+              />
+            </button>
+          );
+        })}
+      </nav>
 
-      {modal === 'campaign' && <CampaignEditor />}
-      {modal === 'profile-edit' && <ProfileEditor />}
-      {modal === 'comments' && activePost && (
+      {/* PROFILE EDIT MODAL */}
+
+      {editing && (
+        <div className={`absolute inset-0 z-50 flex flex-col ${bg}`}>
+          <div className={`h-14 shrink-0 flex items-center justify-between px-4 border-b ${line}`}>
+            <button onClick={() => setEditing(false)}>
+              <X className={`h-6 w-6 ${text}`} />
+            </button>
+            <h2 className={`font-bold ${text}`}>تعديل الملف الشخصي</h2>
+            <button
+              onClick={() => {
+                updateNinjaProfile({ name, bio, avatar });
+                setEditing(false);
+              }}
+              className="text-[#0095F6] font-bold text-sm"
+            >
+              تم
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-6">
+            <div className="flex flex-col items-center gap-3 mb-8">
+              <Avatar src={avatar} name={name} size="h-24 w-24" />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="text-[#0095F6] text-sm font-bold"
+              >
+                تغيير صورة الملف الشخصي
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => changeAvatar(e.target.files?.[0])}
+              />
+            </div>
+
+            <label className={`block text-[13px] font-bold mb-2 ${text}`}>
+              الاسم
+            </label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className={`w-full rounded-xl border px-3 py-3 text-sm outline-none mb-5 ${line} ${text} ${dark ? 'bg-white/5' : 'bg-[#F7F7F7]'}`}
+              dir="rtl"
+            />
+
+            <label className={`block text-[13px] font-bold mb-2 ${text}`}>
+              النبذة التعريفية
+            </label>
+            <textarea
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              rows={4}
+              className={`w-full rounded-xl border px-3 py-3 text-sm outline-none resize-none ${line} ${text} ${dark ? 'bg-white/5' : 'bg-[#F7F7F7]'}`}
+              dir="rtl"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* STORY VIEWER */}
+
+      {story && (
+        <div className="absolute inset-0 z-[60] bg-black flex flex-col">
+          <div className="flex items-center justify-between p-4 text-white">
+            <div className="flex items-center gap-2">
+              <Avatar src={story.image} name={story.name} />
+              <span className="text-sm font-bold">{story.name}</span>
+            </div>
+            <button onClick={() => setStory(null)}>
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center text-white/60 text-sm">
+            مساحة عرض الستوري
+          </div>
+        </div>
+      )}
+
+      {/* COMMENTS */}
+
+      {activePost && (
         <CommentsSheet
           post={activePost}
-          isDark={isDark}
-          bg={bg}
-          text={text}
-          subText={subText}
-          border={border}
-          onClose={() => setModal(null)}
+          isDark={dark}
+          onClose={() => setActivePost(null)}
+          onUpdate={(comments) => {
+            setPosts(prev =>
+              prev.map(p =>
+                p.id === activePost.id ? { ...p, comments } : p
+              )
+            );
+            setActivePost(null);
+          }}
         />
       )}
     </div>
   );
 }
 
+/* ================= COMMENTS ================= */
+
 function CommentsSheet({
   post,
   isDark,
-  bg,
-  text,
-  subText,
-  border,
   onClose,
+  onUpdate,
 }: {
   post: IGPost;
   isDark: boolean;
-  bg: string;
-  text: string;
-  subText: string;
-  border: string;
   onClose: () => void;
+  onUpdate: (comments: IGPost['comments']) => void;
 }) {
   const [comments, setComments] = useState(post.comments);
   const [draft, setDraft] = useState('');
 
+  const bg = isDark ? 'bg-[#171717]' : 'bg-white';
+  const text = isDark ? 'text-white' : 'text-black';
+
+  const addComment = () => {
+    if (!draft.trim()) return;
+    setComments(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        author: 'أنت',
+        text: draft.trim(),
+      },
+    ]);
+    setDraft('');
+  };
+
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-black/40" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-[70] flex items-end bg-black/50"
+      onClick={onClose}
+    >
       <div
-        className={`max-h-[70%] overflow-y-auto rounded-t-3xl p-4 ${bg}`}
-        onClick={(e) => e.stopPropagation()}
+        className={`w-full max-h-[75%] rounded-t-3xl p-4 ${bg}`}
+        onClick={e => e.stopPropagation()}
       >
-        <div className={`mx-auto mb-3 h-1.5 w-12 rounded-full ${isDark ? 'bg-white/20' : 'bg-black/15'}`} />
-        <div className={`flex items-center justify-between border-b pb-2 ${border}`}>
-          <span className={`text-[15px] font-bold ${text}`}>التعليقات</span>
-          <button onClick={onClose} className={text}>
-            <X className="h-5 w-5" />
+        <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-neutral-400/50" />
+        <div className="flex justify-between items-center border-b border-neutral-400/20 pb-3">
+          <h3 className={`font-bold ${text}`}>التعليقات</h3>
+          <button onClick={onClose}>
+            <X className={text} />
           </button>
         </div>
-        {comments.map((c) => (
-          <div key={c.id} className="flex gap-2 py-3">
-            <div className="h-7 w-7 rounded-full" style={{ backgroundColor: '#8E8E93' }} />
-            <p className={`flex-1 text-[13px] ${text}`}>
-              <b>{c.author}</b> {c.text}
+
+        <div className="max-h-[40vh] overflow-y-auto">
+          {comments.map(comment => (
+            <div key={comment.id} className="py-3 text-sm" dir="rtl">
+              <b className={text}>{comment.author}</b>
+              <span className={`mr-2 ${text}`}>{comment.text}</span>
+            </div>
+          ))}
+          {comments.length === 0 && (
+            <p className="py-8 text-center text-sm text-neutral-500">
+              لا توجد تعليقات بعد
             </p>
-          </div>
-        ))}
-        {comments.length === 0 && (
-          <p className={`py-6 text-center text-[13px] ${subText}`}>لا توجد تعليقات بعد</p>
-        )}
-        <div className={`mt-2 flex items-center gap-2 rounded-full border px-3 py-2 ${border}`}>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-neutral-400/20 pt-3">
           <input
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addComment()}
             placeholder="أضف تعليقًا..."
-            className={`flex-1 bg-transparent text-[13px] outline-none ${text}`}
+            className={`flex-1 bg-transparent outline-none text-sm ${text}`}
             dir="rtl"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && draft.trim()) {
-                setComments((prev) => [...prev, { id: Date.now().toString(), author: 'أنت', text: draft.trim() }]);
-                setDraft('');
-              }
-            }}
           />
-          <button
-            onClick={() => {
-              if (!draft.trim()) return;
-              setComments((prev) => [...prev, { id: Date.now().toString(), author: 'أنت', text: draft.trim() }]);
-              setDraft('');
-            }}
-            className="text-[13px] font-semibold text-[#0095F6]"
-          >
+          <button onClick={addComment} className="text-[#0095F6] font-bold text-sm">
             نشر
           </button>
         </div>
