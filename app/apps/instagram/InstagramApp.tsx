@@ -482,14 +482,7 @@ export default function InstagramApp() {
       </span>
     </button>
   ))}
-         </div>
-            <span className={`max-w-full truncate text-xs ${text}`}>
-              {s.name}
-            </span>
-          </button>
-        ))}
-      </div>
-
+</div>
       {displayPosts.map(renderPost)}
     </div>
   );
