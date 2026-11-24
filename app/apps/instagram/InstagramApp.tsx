@@ -526,7 +526,7 @@ export default function InstagramApp() {
               <img
                 src={p.image}
                 alt=""
-                className="w-full h-auto object-contain"
+                className="block w-full h-auto object-contain"
               />
             </button>
           ))}
