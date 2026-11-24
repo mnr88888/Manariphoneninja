@@ -439,32 +439,50 @@ export default function InstagramApp() {
         </div>
       </div>
 
-      {/* الستوريات: حافظت على نفس البنية والأبعاد */}
-      <div className={`flex gap-4 overflow-x-auto border-b px-3 py-3 ${border}`}>
-        {STORIES.map((s, i) => (
-          <button
-            key={s.id}
-            onClick={() => {
-              setActiveStory(i);
-              setModal('story');
-            }}
-            className="flex w-[68px] shrink-0 flex-col items-center gap-1"
-          >
-            <div
-              className={`rounded-full p-[3px] ${
-                i === 0
-                  ? 'bg-gray-300'
-                  : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600'
-              }`}
-            >
-              <img
-                src={s.avatar}
-                alt=""
-                className={`h-14 w-14 rounded-full border-2 object-cover ${
-                  isDark ? 'border-black' : 'border-white'
-                }`}
-              />
-            </div>
+  
+{/* Instagram Stories — External Stories Row */}
+<div
+  className={`relative z-20 flex w-full shrink-0 items-start gap-4 overflow-x-auto overflow-y-hidden border-b px-3 pt-3 pb-3 ${border}`}
+  style={{
+    minHeight: '108px',
+    WebkitOverflowScrolling: 'touch',
+    scrollbarWidth: 'none',
+  }}
+>
+  {STORIES.map((s, i) => (
+    <button
+      key={s.id}
+      type="button"
+      onClick={() => {
+        setActiveStory(i);
+        setModal('story');
+      }}
+      className="flex w-[68px] min-w-[68px] shrink-0 flex-col items-center gap-1"
+    >
+      <div
+        className={`flex h-[66px] w-[66px] shrink-0 items-center justify-center rounded-full p-[3px] ${
+          i === 0
+            ? 'bg-gray-300'
+            : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600'
+        }`}
+      >
+        <img
+          src={s.avatar}
+          alt={s.name}
+          className={`block h-[60px] w-[60px] rounded-full border-2 object-cover ${
+            isDark ? 'border-black' : 'border-white'
+          }`}
+        />
+      </div>
+
+      <span
+        className={`block w-full truncate text-center text-xs leading-4 ${text}`}
+      >
+        {s.name}
+      </span>
+    </button>
+  ))}
+         </div>
             <span className={`max-w-full truncate text-xs ${text}`}>
               {s.name}
             </span>
