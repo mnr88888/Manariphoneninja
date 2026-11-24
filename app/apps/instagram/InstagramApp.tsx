@@ -6,7 +6,7 @@ import {
   Home, Search, Clapperboard, Heart, Send, MessageCircle,
   Bookmark, MoreHorizontal, Plus, X, User,
   ChevronRight, ExternalLink, Link as LinkIcon,
-  Settings, Trash2
+  Settings, Trash2, Reply
 } from 'lucide-react';
 
 import { useSystem } from '../../system/SystemContext';
@@ -16,6 +16,15 @@ const NINJA_URL = 'https://ninja.com.sa';
 const NINJA_AVATAR = '/ninja.webp';
 
 type Tab = 'home' | 'explore' | 'reels' | 'activity' | 'profile' | 'messages';
+
+interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  avatar: string;
+  likes: number;
+  liked: boolean;
+}
 
 interface Post {
   id: string;
@@ -27,9 +36,32 @@ interface Post {
   likes: number;
   liked: boolean;
   saved: boolean;
-  comments: { id: string; author: string; text: string }[];
+  comments: Comment[];
   timestamp: number;
 }
+
+const COMMENT_NAMES = [
+  'نورة', 'سارة', 'ريم', 'جود', 'لينا',
+  'دانة', 'شهد', 'مريم', 'هيا', 'أمل',
+  'رغد', 'غادة', 'ليان', 'تالا', 'جنى',
+  'فاطمة', 'نوف', 'عبير', 'لمى', 'مي',
+  'العنود', 'روان', 'ديما', 'بيان', 'هند',
+  'رزان', 'يارا', 'أريج', 'ملك', 'رؤى',
+  'سلمى', 'جوري', 'شوق', 'أثير', 'لانا',
+  'بشاير', 'مها', 'غلا', 'ريتاج', 'إيمان',
+  'أفنان', 'ضحى', 'مرام', 'دلال', 'رنا',
+  'سدن', 'ملاك', 'نجلاء', 'تهاني', 'نوال',
+  'عبدالله', 'محمد', 'خالد', 'فيصل', 'عمر',
+  'تركي', 'سعود', 'عبدالعزيز', 'راكان', 'بندر',
+  'ماجد', 'فهد', 'سلطان', 'زياد', 'ياسر',
+  'وليد', 'ناصر', 'مشعل', 'إبراهيم', 'حمد',
+  'بدر', 'أنس', 'طلال', 'حسن', 'علي',
+  'سلمان', 'نايف', 'يوسف', 'أحمد', 'ريان',
+  'جاسم', 'عبدالرحمن', 'مهند', 'إياد', 'تميم',
+  'عبدالملك', 'سامي', 'يحيى', 'عادل', 'مروان',
+  'ليث', 'سيف', 'حمزة', 'إسماعيل', 'عاصم',
+  'زياد', 'فارس', 'جابر', 'راشد', 'أنور'
+];
 
 const SAMPLE_COMMENTS = [
   'ما شاء الله السلة تجنن 😍',
@@ -37,25 +69,41 @@ const SAMPLE_COMMENTS = [
   'العيد أحلى مع نينجا!',
   'توقعي 250 ريال',
   'مسابقة جميلة 🎉',
-  'كل عام وأنتم بخير',
+  'كل عام وأنتم بخير ❤️',
   'السلة مرة فخمة!',
   'أتوقع قيمتها 300 ريال',
   'يارب الحظ يكون من نصيبي',
   'نينجا دايم مبدعين 💚',
+  'أتوقع 350 ريال 😍',
+  'يا رب أفوز وأفرح أهلي',
+  'شكلها لذيذة وكل شيء فيها يفتح النفس',
+  'مشاركة وبقوة 💚',
+  'توقعي 280 ريال',
+  'أحلى مسابقة للعيد!',
+  'الله يسعدكم على هالمبادرة',
+  'السلة تستاهل الفوز والله',
+  'أتوقع قيمتها 400 ريال',
+  'تمت المشاركة بالتوفيق للجميع',
+  'يارب تكون من نصيبي 🥹',
+  'فكرة المسابقة حلوة مرة',
+  'أحب مسابقات نينجا 💚',
+  'توقعي 320 ريال',
+  'السلة تجنن خصوصاً التمر 😍'
 ];
 
-const COMMENT_NAMES = [
-  'نورة', 'سارة', 'ريم', 'جود', 'لينا',
-  'دانة', 'شهد', 'مريم', 'هيا', 'أمل',
-  'رغد', 'غادة', 'ليان', 'تالا', 'جنى',
-  'فاطمة', 'نوف', 'عبير', 'لمى', 'مي'
-];
+const AVATARS = Array.from(
+  { length: 100 },
+  (_, i) => `https://i.pravatar.cc/100?img=${(i % 70) + 1}`
+);
 
-const createSampleComments = () =>
+const createSampleComments = (): Comment[] =>
   Array.from({ length: 100 }, (_, i) => ({
     id: `sample-${i + 1}`,
-    author: COMMENT_NAMES[i % COMMENT_NAMES.length],
-    text: SAMPLE_COMMENTS[i % SAMPLE_COMMENTS.length],
+    author: COMMENT_NAMES[i],
+    text: SAMPLE_COMMENTS[(i * 7 + Math.floor(i / 3)) % SAMPLE_COMMENTS.length],
+    avatar: AVATARS[i],
+    likes: (i * 3 + 2) % 18,
+    liked: false,
   }));
 
 const INITIAL_POSTS: Post[] = [
@@ -131,7 +179,7 @@ const STORIES = [
     id: 's3',
     name: 'سارة',
     avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300',
-    image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080'
+    image: 'https://images.unsplash.com/photo-1490750967868-88aa4486f946?w=1080'
   },
   {
     id: 's4',
@@ -149,11 +197,9 @@ const STORIES = [
 
 function relativeTime(timestamp: number) {
   const minutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60000));
-
   if (minutes < 60) return `منذ ${minutes} دقيقة`;
 
   const hours = Math.floor(minutes / 60);
-
   if (hours < 24) return `منذ ${hours} ساعة`;
 
   return `منذ ${Math.floor(hours / 24)} يوم`;
@@ -171,7 +217,7 @@ export default function InstagramApp() {
   const [tab, setTab] = useState<Tab>('home');
 
   const [posts, setPosts] = usePersistentState<Post[]>(
-    'ig-ninja-posts-v3',
+    'ig-ninja-posts-v4',
     INITIAL_POSTS
   );
 
@@ -185,67 +231,120 @@ export default function InstagramApp() {
   const [search, setSearch] = useState('');
   const [menuPost, setMenuPost] = useState<string | null>(null);
 
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState('');
+
   const bg = isDark ? 'bg-black' : 'bg-white';
   const text = isDark ? 'text-white' : 'text-[#262626]';
   const muted = isDark ? 'text-white/50' : 'text-[#8e8e8e]';
   const border = isDark ? 'border-white/10' : 'border-[#efefef]';
   const soft = isDark ? 'bg-[#1c1c1e]' : 'bg-[#f5f5f5]';
 
-  const displayPosts = posts.map(p =>
-    p.id === 'ninja-campaign'
-      ? {
-          ...p,
-          author: ninjaProfile.name || 'Ninja',
-          avatar: ninjaProfile.avatar || NINJA_AVATAR,
-          image: ninjaCampaign.image || p.image,
-          title: ninjaCampaign.title || p.title,
-          caption: ninjaCampaign.description || p.caption,
-        }
-      : p
-  );
+  const displayPosts = posts.map(p => p.id === 'ninja-campaign' ? {
+    ...p,
+    author: ninjaProfile.name || 'Ninja',
+    avatar: ninjaProfile.avatar || NINJA_AVATAR,
+    image: ninjaCampaign.image || p.image,
+    title: ninjaCampaign.title || p.title,
+    caption: ninjaCampaign.description || p.caption,
+  } : p);
 
   const updatePost = (id: string, changes: Partial<Post>) => {
-    setPosts(prev =>
-      prev.map(p => p.id === id ? { ...p, ...changes } : p)
-    );
+    setPosts(prev => prev.map(p =>
+      p.id === id ? { ...p, ...changes } : p
+    ));
   };
 
-  const toggleLike = (p: Post) => {
-    updatePost(p.id, {
-      liked: !p.liked,
-      likes: Math.max(0, p.likes + (p.liked ? -1 : 1)),
-    });
-  };
+  const toggleLike = (p: Post) => updatePost(p.id, {
+    liked: !p.liked,
+    likes: Math.max(0, p.likes + (p.liked ? -1 : 1)),
+  });
 
-  const toggleSave = (p: Post) => {
+  const toggleSave = (p: Post) =>
     updatePost(p.id, { saved: !p.saved });
+
+  const toggleCommentLike = (post: Post, comment: Comment) => {
+    const updatedComments = post.comments.map(c =>
+      c.id === comment.id
+        ? {
+            ...c,
+            liked: !c.liked,
+            likes: Math.max(0, c.likes + (c.liked ? -1 : 1))
+          }
+        : c
+    );
+
+    updatePost(post.id, { comments: updatedComments });
+
+    setActivePost(prev =>
+      prev?.id === post.id
+        ? { ...prev, comments: updatedComments }
+        : prev
+    );
   };
 
   const addComment = () => {
     if (!draft.trim() || !activePost) return;
 
-    const updated = {
-      ...activePost,
-      comments: [
-        ...activePost.comments,
-        {
-          id: Date.now().toString(),
-          author: 'Ninja',
-          text: draft.trim(),
-        },
-      ],
+    const newComment: Comment = {
+      id: Date.now().toString(),
+      author: 'Ninja',
+      text: draft.trim(),
+      avatar: ninjaProfile.avatar || NINJA_AVATAR,
+      likes: 0,
+      liked: false,
     };
 
+    const updatedComments = [
+      ...activePost.comments,
+      newComment
+    ];
+
     updatePost(activePost.id, {
-      comments: updated.comments
+      comments: updatedComments
     });
 
-    setActivePost(updated);
+    setActivePost({
+      ...activePost,
+      comments: updatedComments
+    });
+
     setDraft('');
+  };
+
+  const addReply = (comment: Comment) => {
+    if (!replyDraft.trim() || !activePost) return;
+
+    const newReply: Comment = {
+      id: Date.now().toString(),
+      author: 'Ninja',
+      text: `@${comment.author} ${replyDraft.trim()}`,
+      avatar: ninjaProfile.avatar || NINJA_AVATAR,
+      likes: 0,
+      liked: false,
+    };
+
+    const updatedComments = [
+      ...activePost.comments,
+      newReply
+    ];
+
+    updatePost(activePost.id, {
+      comments: updatedComments
+    });
+
+    setActivePost({
+      ...activePost,
+      comments: updatedComments
+    });
+
+    setReplyDraft('');
+    setReplyingTo(null);
   };
 
   const renderPost = (p: Post) => (
     <article key={p.id} className={`border-b ${border}`}>
+
       <div className="flex items-center gap-3 px-3 py-3">
         <img
           src={p.avatar}
@@ -261,16 +360,13 @@ export default function InstagramApp() {
         </div>
 
         <button
-          onClick={() =>
-            setMenuPost(menuPost === p.id ? null : p.id)
-          }
+          onClick={() => setMenuPost(menuPost === p.id ? null : p.id)}
           aria-label="خيارات المنشور"
         >
           <MoreHorizontal className={text} />
         </button>
       </div>
 
-      {/* صورة المنشور كاملة دون قص */}
       <button
         className="block w-full"
         onClick={() => {
@@ -286,15 +382,12 @@ export default function InstagramApp() {
       </button>
 
       <div className="px-3 py-3">
+
         <div className="flex items-center gap-4">
           <button onClick={() => toggleLike(p)} aria-label="إعجاب">
             <Heart
               size={25}
-              className={
-                p.liked
-                  ? 'fill-red-500 text-red-500'
-                  : text
-              }
+              className={p.liked ? 'fill-red-500 text-red-500' : text}
             />
           </button>
 
@@ -383,9 +476,7 @@ export default function InstagramApp() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 
       <div className={`flex items-center justify-between border-b px-4 py-3 ${border}`}>
-        <b className={`text-2xl italic ${text}`}>
-          Instagram
-        </b>
+        <b className={`text-2xl italic ${text}`}>Instagram</b>
 
         <div className="flex gap-5">
           <button
@@ -404,10 +495,7 @@ export default function InstagramApp() {
         </div>
       </div>
 
-      {/* Stories - منع انكماش الحاوية وظهور الدوائر كاملة */}
-      <div
-        className={`flex shrink-0 min-h-[92px] items-start gap-4 overflow-x-auto overflow-y-hidden border-b px-3 py-3 ${border}`}
-      >
+      <div className={`flex gap-4 overflow-x-auto border-b px-3 py-3 ${border}`}>
         {STORIES.map((s, i) => (
           <button
             key={s.id}
@@ -417,13 +505,11 @@ export default function InstagramApp() {
             }}
             className="flex w-[68px] shrink-0 flex-col items-center gap-1"
           >
-            <div
-              className={`rounded-full p-[3px] ${
-                i === 0
-                  ? 'bg-gray-300'
-                  : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600'
-              }`}
-            >
+            <div className={`rounded-full p-[3px] ${
+              i === 0
+                ? 'bg-gray-300'
+                : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600'
+            }`}>
               <img
                 src={s.avatar}
                 alt=""
@@ -453,6 +539,7 @@ export default function InstagramApp() {
 
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+
         <div className="p-3">
           <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${soft}`}>
             <Search size={18} className={muted} />
@@ -509,10 +596,9 @@ export default function InstagramApp() {
 
   const renderProfile = () => (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+
       <header className={`flex items-center justify-between border-b p-4 ${border}`}>
-        <b className={text}>
-          {ninjaProfile.name || 'ninja'}
-        </b>
+        <b className={text}>{ninjaProfile.name || 'ninja'}</b>
 
         <button onClick={() => setModal('profile')}>
           <Settings className={text} />
@@ -543,9 +629,7 @@ export default function InstagramApp() {
       </div>
 
       <div className="px-4">
-        <b className={text}>
-          {ninjaProfile.name || 'Ninja'}
-        </b>
+        <b className={text}>{ninjaProfile.name || 'Ninja'}</b>
 
         <p className={`mt-1 text-sm ${text}`}>
           {ninjaProfile.bio || 'كل احتياجاتك توصلك مع نينجا 💚'}
@@ -592,6 +676,7 @@ export default function InstagramApp() {
 
   const renderMessages = () => (
     <div className="flex min-h-0 flex-1 flex-col">
+
       <header className={`flex items-center justify-between border-b p-4 ${border}`}>
         <button onClick={() => setTab('home')}>
           <ChevronRight className={text} />
@@ -614,10 +699,7 @@ export default function InstagramApp() {
         />
 
         <div>
-          <b className={`text-sm ${text}`}>
-            رسائل نينجا
-          </b>
-
+          <b className={`text-sm ${text}`}>رسائل نينجا</b>
           <p className={`text-xs ${muted}`}>
             صندوق الرسائل التجريبي
           </p>
@@ -627,10 +709,8 @@ export default function InstagramApp() {
   );
 
   return (
-    <div
-      className={`absolute inset-0 flex flex-col overflow-hidden ${bg}`}
-      dir="rtl"
-    >
+    <div className={`absolute inset-0 flex flex-col overflow-hidden ${bg}`} dir="rtl">
+
       <div className="h-12 shrink-0" />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -666,12 +746,11 @@ export default function InstagramApp() {
         </nav>
       )}
 
-      {/* Post modal */}
+      {/* Post details */}
+
       {modal === 'post' && activePost && (
-        <div
-          className={`absolute inset-0 z-[90] flex flex-col ${bg}`}
-          dir="rtl"
-        >
+        <div className={`absolute inset-0 z-[90] flex flex-col ${bg}`} dir="rtl">
+
           <header className={`flex h-14 items-center justify-between border-b px-4 ${border}`}>
             <button onClick={() => setModal(null)}>
               <ChevronRight className={text} />
@@ -690,9 +769,11 @@ export default function InstagramApp() {
         </div>
       )}
 
-      {/* Story viewer */}
+      {/* Stories - kept separate from the comments interface */}
+
       {modal === 'story' && (
         <div className="absolute inset-0 z-[100] flex flex-col bg-black text-white">
+
           <img
             src={STORIES[activeStory].image}
             alt=""
@@ -703,7 +784,7 @@ export default function InstagramApp() {
             <img
               src={STORIES[activeStory].avatar}
               alt=""
-              className="h-9 w-9 rounded-full object-cover"
+              className="h-9 w-9 rounded-full"
             />
 
             <b>{STORIES[activeStory].name}</b>
@@ -738,64 +819,224 @@ export default function InstagramApp() {
         </div>
       )}
 
-      {/* Comments */}
+      {/* Instagram-style comments */}
+
       {modal === 'comments' && activePost && (
         <div
           className="absolute inset-0 z-[110] flex flex-col justify-end bg-black/50"
           onClick={() => setModal(null)}
         >
           <div
-            className={`max-h-[75%] overflow-y-auto rounded-t-3xl p-4 ${bg}`}
+            className={`flex max-h-[82%] min-h-[65%] flex-col rounded-t-2xl ${bg}`}
             onClick={e => e.stopPropagation()}
           >
-            <div className={`flex items-center justify-between border-b pb-3 ${border}`}>
-              <b className={text}>
-                التعليقات ({activePost.comments.length})
-              </b>
 
-              <button onClick={() => setModal(null)}>
-                <X className={text} />
-              </button>
+            {/* Header */}
+
+            <div className={`shrink-0 border-b px-4 pb-3 pt-3 ${border}`}>
+
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-400/50" />
+
+              <div className="flex items-center justify-between">
+                <span className="w-7" />
+
+                <div className="text-center">
+                  <b className={`text-base ${text}`}>
+                    التعليقات
+                  </b>
+
+                  <p className={`text-[11px] ${muted}`}>
+                    {activePost.comments.length} تعليق
+                  </p>
+                </div>
+
+                <button onClick={() => setModal(null)}>
+                  <X size={23} className={text} />
+                </button>
+              </div>
             </div>
 
-            {activePost.comments.map(c => (
-              <p
-                key={c.id}
-                className={`py-3 text-sm ${text}`}
-              >
-                <b>{c.author}</b> {c.text}
-              </p>
-            ))}
+            {/* Comments list */}
 
-            {!activePost.comments.length && (
-              <p className={`py-8 text-center ${muted}`}>
-                لا توجد تعليقات بعد
-              </p>
-            )}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
-            <div className="mt-3 flex gap-2">
-              <input
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e =>
-                  e.key === 'Enter' && addComment()
-                }
-                placeholder="أضيفي تعليقاً..."
-                className={`min-w-0 flex-1 rounded-full border px-3 py-2 ${border} ${bg} ${text}`}
-              />
+              {activePost.comments.map((c, index) => (
+                <div
+                  key={c.id}
+                  className="flex items-start gap-3 px-4 py-3"
+                >
 
-              <button
-                onClick={addComment}
-                className="font-semibold text-blue-500"
-              >
-                نشر
-              </button>
+                  {/* Profile picture */}
+
+                  <img
+                    src={c.avatar || NINJA_AVATAR}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-full object-cover"
+                  />
+
+                  {/* Comment content */}
+
+                  <div className="min-w-0 flex-1">
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className={`text-[13px] leading-[1.7] ${text}`}>
+                          <b className="ml-1 font-semibold">
+                            {c.author}
+                          </b>
+
+                          {c.text}
+                        </p>
+
+                      </div>
+
+                      {/* Individual comment like */}
+
+                      <button
+                        onClick={() => toggleCommentLike(activePost, c)}
+                        className="flex shrink-0 flex-col items-center gap-1 pt-1"
+                        aria-label="إعجاب بالتعليق"
+                      >
+                        <Heart
+                          size={13}
+                          className={
+                            c.liked
+                              ? 'fill-red-500 text-red-500'
+                              : muted
+                          }
+                        />
+
+                        {c.likes > 0 && (
+                          <span className={`text-[10px] ${muted}`}>
+                            {c.likes}
+                          </span>
+                        )}
+                      </button>
+
+                    </div>
+
+                    {/* Comment actions */}
+
+                    <div className="mt-2 flex items-center gap-4">
+
+                      <span className={`text-[10px] ${muted}`}>
+                        {index < 10
+                          ? `${index + 1} س`
+                          : `${Math.floor(index / 10)} س`}
+                      </span>
+
+                      <button
+                        onClick={() => setReplyingTo(
+                          replyingTo === c.id ? null : c.id
+                        )}
+                        className={`text-[11px] font-semibold ${muted}`}
+                      >
+                        رد
+                      </button>
+
+                      <button
+                        className={`text-[11px] font-semibold ${muted}`}
+                      >
+                        إرسال رسالة
+                      </button>
+
+                    </div>
+
+                    {/* Reply input */}
+
+                    {replyingTo === c.id && (
+                      <div className="mt-3 flex items-center gap-2">
+
+                        <input
+                          value={replyDraft}
+                          onChange={e => setReplyDraft(e.target.value)}
+                          onKeyDown={e =>
+                            e.key === 'Enter' && addReply(c)
+                          }
+                          placeholder={`الرد على ${c.author}...`}
+                          className={`min-w-0 flex-1 rounded-full border px-3 py-2 text-xs outline-none ${border} ${bg} ${text}`}
+                        />
+
+                        <button
+                          onClick={() => addReply(c)}
+                          className="text-xs font-semibold text-blue-500"
+                        >
+                          نشر
+                        </button>
+
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+              ))}
+
+              {activePost.comments.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <MessageCircle size={38} className={muted} />
+
+                  <b className={`mt-3 ${text}`}>
+                    لا توجد تعليقات بعد
+                  </b>
+
+                  <p className={`mt-1 text-xs ${muted}`}>
+                    كوني أول من يعلق!
+                  </p>
+                </div>
+              )}
+
             </div>
+
+            {/* Bottom comment input */}
+
+            <div className={`shrink-0 border-t px-3 pb-5 pt-3 ${border}`}>
+
+              <div className="flex items-center gap-3">
+
+                <img
+                  src={ninjaProfile.avatar || NINJA_AVATAR}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-full object-cover"
+                />
+
+                <div className={`flex min-w-0 flex-1 items-center rounded-full border px-4 py-2 ${border}`}>
+
+                  <input
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e =>
+                      e.key === 'Enter' && addComment()
+                    }
+                    placeholder="أضيفي تعليقاً..."
+                    className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${text}`}
+                  />
+
+                  <button
+                    onClick={addComment}
+                    disabled={!draft.trim()}
+                    className="mr-2 shrink-0 text-sm font-semibold text-blue-500 disabled:opacity-40"
+                  >
+                    نشر
+                  </button>
+
+                </div>
+
+              </div>
+
+              <div className={`mt-3 text-center text-[10px] ${muted}`}>
+                قد تكون بعض التعليقات تجريبية لأغراض المحاكاة
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* Campaign panel */}
+      {/* Campaign editor */}
+
       {modal === 'campaign' && (
         <CampaignPanel
           bg={bg}
@@ -807,6 +1048,7 @@ export default function InstagramApp() {
           initialDescription={ninjaCampaign.description || ''}
           onClose={() => setModal(null)}
           onSave={(image, title, description, publish) => {
+
             updateNinjaCampaign({
               image,
               title,
@@ -826,7 +1068,7 @@ export default function InstagramApp() {
                 likes: 0,
                 liked: false,
                 saved: false,
-                comments: [],
+                comments: createSampleComments(),
                 timestamp: Date.now(),
               }, ...prev.filter(p => p.id !== 'ninja-campaign')]);
             }
@@ -836,7 +1078,8 @@ export default function InstagramApp() {
         />
       )}
 
-      {/* Profile panel */}
+      {/* Profile editor */}
+
       {modal === 'profile' && (
         <ProfilePanel
           bg={bg}
@@ -852,6 +1095,7 @@ export default function InstagramApp() {
           }}
         />
       )}
+
     </div>
   );
 }
@@ -861,17 +1105,18 @@ function CampaignPanel({
   initialImage, initialTitle, initialDescription,
   onClose, onSave
 }: any) {
+
   const [image, setImage] = useState(initialImage);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
+
   const ref = useRef<HTMLInputElement>(null);
 
   return (
-    <div
-      className={`absolute inset-0 z-[120] flex flex-col ${bg} p-4`}
-      dir="rtl"
-    >
+    <div className={`absolute inset-0 z-[120] flex flex-col ${bg} p-4`} dir="rtl">
+
       <header className="flex items-center justify-between py-3">
+
         <button onClick={onClose}>
           <X className={text} />
         </button>
@@ -884,6 +1129,7 @@ function CampaignPanel({
         >
           نشر
         </button>
+
       </header>
 
       {image && (
@@ -939,6 +1185,7 @@ function CampaignPanel({
       >
         حفظ كمسودة
       </button>
+
     </div>
   );
 }
@@ -948,17 +1195,18 @@ function ProfilePanel({
   initialName, initialBio, initialAvatar,
   onClose, onSave
 }: any) {
+
   const [name, setName] = useState(initialName);
   const [bio, setBio] = useState(initialBio);
   const [avatar, setAvatar] = useState(initialAvatar);
+
   const ref = useRef<HTMLInputElement>(null);
 
   return (
-    <div
-      className={`absolute inset-0 z-[120] flex flex-col ${bg} p-4`}
-      dir="rtl"
-    >
+    <div className={`absolute inset-0 z-[120] flex flex-col ${bg} p-4`} dir="rtl">
+
       <header className="flex items-center justify-between py-3">
+
         <button onClick={onClose}>
           <X className={text} />
         </button>
@@ -971,9 +1219,11 @@ function ProfilePanel({
         >
           حفظ
         </button>
+
       </header>
 
       <div className="flex flex-col items-center gap-3 p-4">
+
         <img
           src={avatar}
           alt=""
@@ -1018,6 +1268,7 @@ function ProfilePanel({
           placeholder="النبذة التعريفية"
           className={`w-full rounded-xl border p-3 ${border} ${bg} ${text}`}
         />
+
       </div>
     </div>
   );
