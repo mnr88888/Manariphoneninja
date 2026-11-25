@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import SocialInbox from '../shared/SocialInbox';
 import {
   Home, Search, Clapperboard, Heart, Send, MessageCircle,
   Bookmark, MoreHorizontal, Plus, X, User,
@@ -164,9 +165,13 @@ export default function InstagramApp() {
     updateNinjaCampaign,
     ninjaProfile,
     updateNinjaProfile,
+    pendingDeepLink,
   } = useSystem();
 
   const [tab, setTab] = useState<Tab>('home');
+  useEffect(() => {
+    if (pendingDeepLink?.appId === 'instagram') { setModal(null); setTab('messages'); }
+  }, [pendingDeepLink]);
 
   // مفتاح جديد لتهيئة التعليقات الجديدة
   const [posts, setPosts] = usePersistentState<Post[]>(
@@ -537,13 +542,7 @@ export default function InstagramApp() {
     </div>
   );
 
-  const renderActivity = () => (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-      <Heart size={42} className={muted} />
-      <b className={text}>النشاط</b>
-      <p className={`text-sm ${muted}`}>أنتِ مطّلعة على كل جديد</p>
-    </div>
-  );
+  const renderActivity = () => <SocialInbox appId="instagram" activity onClose={() => setTab('home')} />;
 
   const renderProfile = () => (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -615,31 +614,7 @@ export default function InstagramApp() {
     </div>
   );
 
-  const renderMessages = () => (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className={`flex items-center justify-between border-b p-4 ${border}`}>
-        <button onClick={() => setTab('home')}>
-          <ChevronRight className={text} />
-        </button>
-        <b className={text}>ninja</b>
-        <Settings className={text} />
-      </header>
-      <div className={`m-3 rounded-lg p-3 ${soft} ${muted}`}>
-        بحث في الرسائل
-      </div>
-      <div className="flex items-center gap-3 p-4">
-        <img
-          src={NINJA_AVATAR}
-          alt=""
-          className="h-12 w-12 rounded-full object-cover"
-        />
-        <div>
-          <b className={`text-sm ${text}`}>رسائل نينجا</b>
-          <p className={`text-xs ${muted}`}>صندوق الرسائل التجريبي</p>
-        </div>
-      </div>
-    </div>
-  );
+  const renderMessages = () => <SocialInbox appId="instagram" onClose={() => setTab('home')} />;
 
   return (
     <div className={`absolute inset-0 flex flex-col overflow-hidden ${bg}`} dir="rtl">
