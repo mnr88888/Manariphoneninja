@@ -187,7 +187,7 @@ export default function PhotosApp() {
         
       />
 
-      <div className="grid flex-1 grid-cols-3 gap-0 overflow-y-auto pb-2">
+      <div className="grid flex-1 content-start auto-rows-max grid-cols-3 gap-0 overflow-y-auto pb-2">
         {currentList.length === 0 ? (
           <p className="col-span-3 mt-16 text-center text-sm text-black/40">
             {view === 'recently-deleted'
