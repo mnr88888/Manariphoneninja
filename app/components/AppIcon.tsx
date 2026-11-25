@@ -42,6 +42,7 @@ export default function AppIcon({
       className="flex flex-col items-center gap-1.5 focus:outline-none"
       aria-label={app.name}
     >
+      <div className="relative">
       <div
         className={`relative flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[14px] shadow-lg transition-transform duration-150 ${
           pressed ? 'icon-press scale-90' : 'scale-100'
@@ -83,11 +84,13 @@ export default function AppIcon({
             style={{ background: 'radial-gradient(circle at 50% 30%, transparent 40%, rgba(0,0,0,0.35) 100%)' }}
           />
         )}
-        {badge != null && badge > 0 && (
-          <span className="absolute -top-1 -right-1 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[11px] font-bold text-white shadow-md">
-            {badge > 99 ? '99+' : badge}
-          </span>
-        )}
+      </div>
+      {/* Badge lives OUTSIDE the clipped icon so it straddles the corner like iOS */}
+      {badge != null && badge > 0 && (
+        <span className="pointer-events-none absolute -right-[7px] -top-[7px] z-10 flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[13px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.35)]">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
       </div>
       {showLabel && (
         <span className="text-[11px] font-medium text-white drop-shadow-md">

@@ -18,9 +18,9 @@ import { sendIncomingWhatsApp } from '../system/whatsappSimulation';
  *   - the next ones follow every LOCK_GAP_MIN_MS..LOCK_GAP_MAX_MS
  * Change the order / timing here.
  * ============================================================ */
-const LOCK_FIRST_DELAY_MS = 60 * 1000;
-const LOCK_GAP_MIN_MS = 40 * 1000;
-const LOCK_GAP_MAX_MS = 70 * 1000;
+const LOCK_FIRST_DELAY_MS = 10 * 1000;
+const LOCK_GAP_MIN_MS = 10 * 1000;
+const LOCK_GAP_MAX_MS = 10 * 1000;
 /** Order of the feed; it loops. 'ninja' = campaign push, 'whatsapp' = chat message */
 const LOCK_FEED_SCRIPT: ('ninja' | 'whatsapp')[] = ['ninja', 'whatsapp', 'whatsapp', 'ninja', 'whatsapp'];
 /** Max cards shown at once; the rest collapse into a "+N more" pill */

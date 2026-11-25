@@ -33,7 +33,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
 
   return (
     <div
-      className="switcher-fade absolute inset-0 z-[70] bg-black/70 backdrop-blur-2xl"
+      className="switcher-fade absolute inset-0 z-[70] bg-white/60 backdrop-blur-2xl"
       onClick={onClose}
     >
       <div
@@ -42,11 +42,11 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pb-3">
-          <h2 className="text-xl font-bold text-white">الإشعارات</h2>
+          <h2 className="text-xl font-bold text-black/90">الإشعارات</h2>
           {visible.length > 0 && (
             <button
               onClick={clearNotifications}
-              className="flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs text-white active:scale-95"
+              className="flex items-center gap-1 rounded-full bg-black/10 px-3 py-1 text-xs text-black/80 active:scale-95"
             >
               <Trash2 className="h-3 w-3" />
               مسح الكل
@@ -57,7 +57,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
         {/* Notifications list */}
         <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6">
           {visible.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-white/50">
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-black/40">
               <BellOff className="h-10 w-10" />
               <p className="text-sm">لا توجد إشعارات</p>
             </div>
@@ -68,7 +68,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
                 return (
                   <div
                     key={n.id}
-                    className="flex w-full items-stretch gap-2 rounded-[20px] bg-white/10 p-3 text-right transition active:scale-[0.98]"
+                    className="flex w-full items-stretch gap-2 rounded-[20px] bg-white/85 p-3 shadow-sm text-right transition active:scale-[0.98]"
                   >
                     <button
                       onClick={() => {
@@ -79,7 +79,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
                       className="flex min-w-0 flex-1 items-start gap-3 text-right"
                     >
                       {/* App icon */}
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/20">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/5">
                         {app && (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={app.imageIcon} alt="" className="h-full w-full object-cover" />
@@ -88,14 +88,14 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
 
                       <div className="flex min-w-0 flex-1 flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="truncate text-sm font-semibold text-white">
+                          <span className="truncate text-sm font-semibold text-black/90">
                             {n.title}
                           </span>
-                          <span className="shrink-0 text-[11px] text-white/50">
+                          <span className="shrink-0 text-[11px] text-black/40">
                             {formatTime(n.timestamp)}
                           </span>
                         </div>
-                        <p className="mt-0.5 line-clamp-2 text-[13px] text-white/80">
+                        <p className="mt-0.5 line-clamp-2 text-[13px] text-black/65">
                           {n.body}
                         </p>
                       </div>
@@ -108,7 +108,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
                     {/* Dismiss */}
                     <button
                       onClick={() => dismissNotification(n.id)}
-                      className="flex shrink-0 items-start pt-1 text-white/40 active:text-white"
+                      className="flex shrink-0 items-start pt-1 text-black/35 active:text-black/70"
                       aria-label="حذف الإشعار"
                     >
                       <X className="h-4 w-4" />
@@ -123,7 +123,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
         {/* Close hint */}
         <button
           onClick={onClose}
-          className="flex shrink-0 items-center justify-center gap-1 pb-6 text-sm text-white/60"
+          className="flex shrink-0 items-center justify-center gap-1 pb-6 text-sm text-black/50"
         >
           <X className="h-4 w-4" />
           إغلاق مركز الإشعارات

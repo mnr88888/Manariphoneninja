@@ -82,14 +82,14 @@ export default function NotificationBanner() {
     >
       <button
         onClick={open}
-        className="flex w-full items-center gap-3 rounded-[26px] border border-white/15 px-3.5 py-3 text-right shadow-[0_10px_34px_rgba(0,0,0,0.35)] active:scale-[0.98]"
+        className="flex w-full items-center gap-3 rounded-[26px] border border-white/70 px-3.5 py-3 text-right shadow-[0_10px_34px_rgba(0,0,0,0.18)] active:scale-[0.98]"
         style={{
-          background: 'rgba(28,28,30,0.82)',
+          background: 'rgba(255,255,255,0.86)',
           backdropFilter: 'blur(28px) saturate(1.6)',
           WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
         }}
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white/10">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/5">
           {app && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={app.imageIcon} alt="" className="h-full w-full object-cover" />
@@ -97,11 +97,11 @@ export default function NotificationBanner() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[14px] font-bold text-white">{banner.title}</span>
-            <span className="shrink-0 text-[11px] text-white/55">الآن</span>
+            <span className="truncate text-[14px] font-bold text-black/90">{banner.title}</span>
+            <span className="shrink-0 text-[11px] text-black/40">الآن</span>
           </div>
           {settings.notifPreviews && (
-            <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-white/85">{banner.body}</p>
+            <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-black/70">{banner.body}</p>
           )}
         </div>
       </button>

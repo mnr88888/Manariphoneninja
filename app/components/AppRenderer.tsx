@@ -109,7 +109,7 @@ export default function AppRenderer({
 
   return (
     <div
-      className={`absolute inset-0 z-30 ${animClass} ${isDark ? 'dark-shell' : ''}`}
+      className={`absolute inset-0 z-30 ${animClass} ${isDark && appId !== 'whatsapp' ? 'dark-shell' : ''}`}
       style={{
         visibility: isHidden ? 'hidden' : 'visible',
         pointerEvents: isHidden || dragging ? 'none' : 'auto',
