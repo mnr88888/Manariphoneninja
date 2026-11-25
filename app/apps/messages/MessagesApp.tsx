@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { usePersistentState, uid, formatArabicTime } from '../shared/utils';
 import { toArabicDigits } from '../shared/utils';
+import { useSystem } from '../../system/SystemContext';
 
 /* ============================================================
  * Types
@@ -188,6 +189,7 @@ export default function MessagesApp() {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [composeRecipient, setComposeRecipient] = useState<string>('');
   const [composeBody, setComposeBody] = useState('');
+  const { pendingDeepLink, consumeDeepLink } = useSystem();
 
   // Contacts lookup
   const contactById = useMemo(() => {
@@ -227,6 +229,13 @@ export default function MessagesApp() {
       prev.map((c) => (c.id === convId ? { ...c, unread: 0 } : c))
     );
   }, [setConversations]);
+
+  useEffect(() => {
+    if (pendingDeepLink?.appId !== 'messages') return;
+    const target = pendingDeepLink.targetId;
+    if (target && conversations.some((c) => c.id === target)) openConversation(target);
+    consumeDeepLink();
+  }, [pendingDeepLink, consumeDeepLink, conversations, openConversation]);
 
   const handleDeleteConversation = useCallback(
     (convId: string) => {
