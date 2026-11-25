@@ -187,7 +187,7 @@ export default function PhotosApp() {
         
       />
 
-      <div className="grid flex-1 grid-cols-3 gap-0.5 overflow-y-auto px-0.5 pb-2">
+      <div className="grid flex-1 grid-cols-3 gap-0 overflow-y-auto pb-2">
         {currentList.length === 0 ? (
           <p className="col-span-3 mt-16 text-center text-sm text-black/40">
             {view === 'recently-deleted'
@@ -206,7 +206,7 @@ export default function PhotosApp() {
                 background: p.imageUrl || p.gradient,
               }}
             >
-              <PhotoVisual photo={p} contain />
+              <PhotoVisual photo={p} />
               {p.favorite && (
                 <Heart
                   className="absolute bottom-1 right-1 h-4 w-4 text-white"
