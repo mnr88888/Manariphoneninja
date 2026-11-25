@@ -233,7 +233,7 @@ export default function PhotosApp() {
                 background: p.imageUrl || p.gradient,
               }}
             >
-              <PhotoVisual photo={p} />
+              <PhotoVisual photo={p} contain />
               {p.favorite && (
                 <Heart
                   className="absolute bottom-1 right-1 h-4 w-4 text-white"

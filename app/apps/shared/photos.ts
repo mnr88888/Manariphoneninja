@@ -132,7 +132,6 @@ export function usePhotos() {
     const missing = storedPhotos.filter((photo) => photo.imageKey && !imageUrlsRef.current[photo.id]);
     Promise.all(missing.map(async (photo) => [photo.id, await readOriginalImage(photo.imageKey!)] as const)).then((entries) => {
       if (cancelled) {
-        entries.forEach(([, url]) => { if (url) URL.revokeObjectURL(url); });
         return;
       }
       setImageUrls((previous) => {
@@ -140,7 +139,6 @@ export function usePhotos() {
         entries.forEach(([id, url]) => { if (url) next[id] = url; });
         Object.keys(next).forEach((id) => {
           if (!expected.has(id)) {
-            URL.revokeObjectURL(next[id]);
             delete next[id];
           }
         });
@@ -151,10 +149,6 @@ export function usePhotos() {
       cancelled = true;
     };
   }, [storedPhotos]);
-
-  useEffect(() => () => {
-    Object.values(imageUrlsRef.current).forEach((url) => URL.revokeObjectURL(url));
-  }, []);
 
   const photos = useMemo(
     () => storedPhotos.map((photo) => ({ ...photo, imageUrl: photo.imageKey ? imageUrls[photo.id] : undefined })),
