@@ -12,6 +12,7 @@ import ControlCenter from './components/ControlCenter';
 import NotificationCenter from './components/NotificationCenter';
 import LockScreen from './components/LockScreen';
 import DynamicIsland from './components/DynamicIsland';
+import NotificationBanner from './components/NotificationBanner';
 import { useWhatsAppSimulation } from './system/whatsappSimulation';
 import HomeIndicator from './components/HomeIndicator';
 
@@ -80,6 +81,9 @@ function PhoneShell() {
 
       {/* Dynamic Island */}
       <DynamicIsland />
+
+      {/* iOS top banner for incoming notifications (unlocked only) */}
+      <NotificationBanner />
 
       {/* Lock Screen */}
       {locked && <LockScreen />}

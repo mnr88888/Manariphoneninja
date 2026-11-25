@@ -181,3 +181,82 @@ html {
 .dark-shell [class*='bg-gradient'] {
   filter: invert(0.92) hue-rotate(180deg);
 }
+
+/* ===== iPhone-style notification animations ===== */
+
+/* Lock screen: new notification rolls up from the bottom with a soft spring */
+@keyframes lock-notif-in {
+  0% {
+    opacity: 0;
+    transform: translateY(90px) scale(0.84);
+    filter: blur(12px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-7px) scale(1.018);
+    filter: blur(0);
+  }
+  75% {
+    transform: translateY(2px) scale(0.998);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.lock-notif-in {
+  /* 'backwards' (not 'both'): once finished, drop the filter so the card's glass blur works again */
+  animation: lock-notif-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* Lock screen: dismissed notification slides away */
+@keyframes lock-notif-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-120%) scale(0.96);
+  }
+}
+.lock-notif-out {
+  animation: lock-notif-out 0.28s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+
+/* Top banner: drops out of the Dynamic Island */
+@keyframes banner-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-46px) scale(0.45);
+    border-radius: 40px;
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.banner-in {
+  transform-origin: top center;
+  animation: banner-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes banner-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.6);
+  }
+}
+.banner-out {
+  transform-origin: top center;
+  animation: banner-out 0.3s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
