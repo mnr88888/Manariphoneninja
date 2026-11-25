@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   MessageCircle,
@@ -22,17 +22,28 @@ import {
   PhoneMissed,
   X,
   Trash2,
+  Users,
 } from 'lucide-react';
-import { usePersistentState, uid, formatArabicTime } from '../shared/utils';
+import { usePersistentState, formatArabicTime } from '../shared/utils';
 import { useSystem } from '../../system/SystemContext';
 import { useOS } from '../../OSContext';
 import {
   type WAContact,
-  type WAMessage,
   type WAChat,
   SAMPLE_CONTACTS,
   SAMPLE_CHATS,
   HOUR,
+  WA_CHATS_KEY,
+  WA_CONTACTS_KEY,
+  WA_STORE_EVENT,
+  NINJA_CONTACT_ID,
+  PROJECT_MEMBERS,
+  ensureWhatsAppStore,
+  updateWhatsAppChats,
+  markWhatsAppChatRead,
+  setActiveWhatsAppConversation,
+  sendWhatsAppMessage,
+  deliverWhatsAppReply,
 } from '../../system/whatsappStore';
 
 /* Types & sample data live in ../../system/whatsappStore (shared with the incoming-message engine) */
@@ -50,13 +61,66 @@ interface WARecentCall {
  * Main component
  * ============================================================ */
 
+/** No mount-time autosave: initial samples can never overwrite engine messages. */
+function useWhatsAppStore() {
+  const [store, setStore] = useState<{ chats: WAChat[]; contacts: WAContact[] }>({
+    chats: SAMPLE_CHATS, contacts: SAMPLE_CONTACTS,
+  });
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const reload = () => {
+      setStore(ensureWhatsAppStore());
+      setReady(true);
+    };
+    const onChange = (event: Event) => {
+      const key = (event as CustomEvent<{ key?: string }>).detail?.key;
+      if (key === WA_CHATS_KEY || key === WA_CONTACTS_KEY) reload();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === WA_CHATS_KEY || event.key === WA_CONTACTS_KEY) reload();
+    };
+    window.addEventListener(WA_STORE_EVENT, onChange);
+    window.addEventListener('wa-sim-message', reload);
+    window.addEventListener('storage', onStorage);
+    // Migrate before reading/loading. Register first so no commit is missed.
+    reload();
+    return () => {
+      window.removeEventListener(WA_STORE_EVENT, onChange);
+      window.removeEventListener('wa-sim-message', reload);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+  const setChats = useCallback((update: WAChat[] | ((chats: WAChat[]) => WAChat[])) => {
+    const chats = updateWhatsAppChats(update);
+    setStore((current) => ({ ...current, chats }));
+  }, []);
+  return { ...store, ready, setChats };
+}
+
+function ContactAvatar({ contact, size = 'list' }: { contact: WAContact; size?: 'header' | 'list' | 'info' }) {
+  const sizing = size === 'info' ? 'h-20 w-20 text-2xl' : size === 'header' ? 'h-9 w-9 text-sm' : 'h-12 w-12 text-lg';
+  return (
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white ${sizing}`}
+      style={{ backgroundColor: contact.color }}>
+      {contact.id === NINJA_CONTACT_ID || contact.kind === 'ninja' ? (
+        // Existing local brand asset; no remote image or new asset required.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/ninja.webp" alt="نينجا" className="h-full w-full object-cover" />
+      ) : contact.kind === 'group' ? (
+        <Users className={size === 'info' ? 'h-10 w-10' : size === 'header' ? 'h-5 w-5' : 'h-6 w-6'} aria-label="مجموعة" />
+      ) : contact.name.charAt(0)}
+    </div>
+  );
+}
+
 export default function WhatsAppApp() {
-  const [chats, setChats] = usePersistentState<WAChat[]>('wa-chats', SAMPLE_CHATS);
-  const [contacts] = usePersistentState<WAContact[]>('wa-contacts', SAMPLE_CONTACTS);
-  const { pendingDeepLink, consumeDeepLink, setBadge, badges, settings } = useSystem();
-  const { openApp, activeApp } = useOS();
+  const { chats, contacts, ready, setChats } = useWhatsAppStore();
+  const { pendingDeepLink, consumeDeepLink, setBadge, badges, settings, locked, notifications, markNotificationRead } = useSystem();
+  const { openApp, activeApp, screenMode } = useOS();
   const [tab, setTab] = useState<'chats' | 'calls' | 'status' | 'settings'>('chats');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
@@ -74,15 +138,27 @@ export default function WhatsAppApp() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const replyTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
   const activeContact = activeChat
-    ? contacts.find((c) => c.id === activeChat.contactId)
+    ? contacts.find((c) => c.id === activeChat.contactId) ?? {
+      id: activeChat.contactId, name: activeChat.name || 'جهة اتصال محفوظة', color: '#607D8B',
+      kind: activeChat.isGroup ? 'group' as const : 'person' as const,
+    }
     : null;
+  const groupMembers = activeChat?.isGroup ? activeChat.participants ?? PROJECT_MEMBERS : [];
+
+  useEffect(() => () => {
+    replyTimers.current.forEach(clearTimeout);
+    replyTimers.current.clear();
+  }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeChat?.messages.length]);
+    const node = focusMessageId ? Array.from(messageListRef.current?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).find((e) => e.dataset.messageId === focusMessageId) : null;
+    if (node) node.scrollIntoView({ block: 'center' });
+    else messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeChat?.messages.length, activeChatId, focusMessageId]);
 
   useEffect(() => {
     if (recording) {
@@ -99,115 +175,67 @@ export default function WhatsAppApp() {
     };
   }, [recording]);
 
-  // Reload chats when the simulator engine writes a new incoming message
-  useEffect(() => {
-    const reload = () => {
-      try {
-        const raw = localStorage.getItem('wa-chats');
-        if (raw) setChats(JSON.parse(raw));
-      } catch {
-        // ignore malformed storage
-      }
-    };
-    window.addEventListener('wa-sim-message', reload);
-    return () => window.removeEventListener('wa-sim-message', reload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setChats]);
-
   // Sync the system WhatsApp badge with real unread count
   const totalUnread = chats.reduce((s, c) => s + c.unread, 0);
   useEffect(() => {
-    if (badges.whatsapp !== totalUnread) {
+    if (ready && badges.whatsapp !== totalUnread) {
       setBadge('whatsapp', totalUnread);
     }
-  }, [totalUnread, badges.whatsapp, setBadge]);
+  }, [ready, totalUnread, badges.whatsapp, setBadge]);
 
   // Deep link from Notification Center: open the exact conversation
   useEffect(() => {
     if (
-      pendingDeepLink &&
+      ready && pendingDeepLink &&
       pendingDeepLink.appId === 'whatsapp' &&
       pendingDeepLink.targetId
     ) {
       const chatId = pendingDeepLink.targetId;
+      if (!chats.some((c) => c.id === chatId)) return;
+      setFocusMessageId(pendingDeepLink.messageId ?? null);
       setTab('chats');
       setActiveChatId(chatId);
-      setChats((prev) =>
-        prev.map((c) => (c.id === chatId ? { ...c, unread: 0 } : c))
-      );
+      setShowContactInfo(false);
       consumeDeepLink();
     }
-  }, [pendingDeepLink, consumeDeepLink, setChats]);
+  }, [pendingDeepLink, consumeDeepLink, setChats, chats, ready]);
 
-  // Mark conversation as read when opened
+  // The engine knows which conversation is genuinely visible (not just mounted).
   useEffect(() => {
-    if (activeChatId && activeApp === 'whatsapp') {
-      setChats((prev) =>
-        prev.map((c) => (c.id === activeChatId ? { ...c, unread: 0 } : c))
-      );
-    }
-  }, [activeChatId, activeApp, setChats]);
+    setActiveWhatsAppConversation(activeApp === 'whatsapp' && screenMode === 'app' && !locked ? activeChatId : null);
+    return () => setActiveWhatsAppConversation(null);
+  }, [activeChatId, activeApp, screenMode, locked]);
 
-  const getContact = (id: string) => contacts.find((c) => c.id === id);
+  // Includes newly incoming messages and cross-tab writes while the chat is open.
+  useEffect(() => {
+    if (!activeChatId || activeApp !== 'whatsapp' || screenMode !== 'app' || locked) return;
+    if (activeChat?.unread) markWhatsAppChatRead(activeChatId);
+    notifications.filter((n) => n.appId === 'whatsapp' && n.targetId === activeChatId && !n.read).forEach(markNotificationRead);
+  }, [activeChatId, activeApp, screenMode, locked, activeChat?.unread, notifications, markNotificationRead]);
+
+  const getContact = (id: string): WAContact => contacts.find((c) => c.id === id)
+    ?? { id, name: chats.find((chat) => chat.contactId === id)?.name || 'جهة اتصال محفوظة', color: '#607D8B' };
 
   const sendMessage = (text: string, type: 'text' | 'voice' = 'text', duration?: number) => {
     if (!activeChatId) return;
-    const msg: WAMessage = {
-      id: uid(),
-      text,
-      sender: 'me',
-      timestamp: Date.now(),
-      type,
-      duration,
-    };
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === activeChatId ? { ...c, messages: [...c.messages, msg] } : c
-      )
-    );
-    // Simulated reply
-    setTimeout(() => {
-      setChats((prev) =>
-        prev.map((c) => {
-          if (c.id !== activeChatId) return c;
-          const reply = simulatedReply(text);
-          return {
-            ...c,
-            messages: [
-              ...c.messages,
-              {
-                id: uid(),
-                text: reply,
-                sender: 'them' as const,
-                timestamp: Date.now(),
-              },
-            ],
-          };
-        })
-      );
+    const chatId = activeChatId;
+    setFocusMessageId(null);
+    sendWhatsAppMessage(chatId, text, type, duration);
+    // Capture the target, not component state. Shared delivery picks the right
+    // group participant, Ninja-only promotion, or personal reply pool.
+    const timer = setTimeout(() => {
+      replyTimers.current.delete(timer);
+      deliverWhatsAppReply(chatId, text);
     }, 1500 + Math.random() * 2000);
-  };
-
-  const simulatedReply = (incoming: string): string => {
-    const replies = [
-      'تمام، شكراً لك',
-      'أوافق على ذلك',
-      'سأرد عليك لاحقاً',
-      'ممتاز!',
-      'الله يعطيك العافية',
-      'وصلتني رسالتك',
-      'إن شاء الله',
-      'ما شاء الله',
-    ];
-    if (incoming.includes('شكراً')) return 'العفو، دائماً في الخدمة';
-    if (incoming.includes('؟')) return 'سؤال جيد، سأجاوبك قريباً';
-    return replies[Math.floor(Math.random() * replies.length)];
+    replyTimers.current.add(timer);
   };
 
   const filteredChats = useMemo(() => {
-    if (!search.trim()) return chats;
+    const sorted = [...chats].sort((a, b) =>
+      (b.messages[b.messages.length - 1]?.timestamp ?? 0) - (a.messages[a.messages.length - 1]?.timestamp ?? 0));
+    if (!search.trim()) return sorted;
     const s = search.trim();
-    return chats.filter((c) => {
+    return sorted.filter((c) => {
       const contact = getContact(c.contactId);
       const inName = contact?.name.includes(s);
       const inMsg = c.messages.some((m) => m.text.includes(s));
@@ -231,6 +259,8 @@ export default function WhatsAppApp() {
             onClick={() => {
               setActiveChatId(null);
               setShowContactInfo(false);
+              setActiveWhatsAppConversation(null);
+              setDraft('');
             }}
             className="text-white active:opacity-60"
           >
@@ -240,17 +270,14 @@ export default function WhatsAppApp() {
             onClick={() => setShowContactInfo(true)}
             className="flex flex-1 items-center gap-2 text-right"
           >
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white"
-              style={{ backgroundColor: activeContact.color }}
-            >
-              {activeContact.name[0]}
-            </div>
-            <div>
+            <ContactAvatar contact={activeContact} size="header" />
+            <div className="min-w-0">
               <p className="text-[15px] font-semibold text-white">
                 {activeContact.name}
               </p>
-              <p className="text-[11px] text-white/60">متصل الآن</p>
+              <p className="truncate text-[11px] text-white/60">
+                {activeChat.isGroup ? `٥ أعضاء · ${groupMembers.map((member) => member.id === 'me' ? 'أنتِ' : member.name).join('، ')}` : 'متصل الآن'}
+              </p>
             </div>
           </button>
           <button className="p-1.5 text-white/80">
@@ -262,11 +289,12 @@ export default function WhatsAppApp() {
         </div>
 
         {/* Messages */}
-        <div className="no-scrollbar flex-1 overflow-y-auto px-3 py-3">
+        <div ref={messageListRef} className="no-scrollbar flex-1 overflow-y-auto px-3 py-3">
           <div className="flex flex-col gap-1.5">
             {activeChat.messages.map((m) => (
               <div
                 key={m.id}
+                data-message-id={m.id}
                 className={`flex ${m.sender === 'me' ? 'justify-start' : 'justify-end'}`}
               >
                 <div
@@ -276,6 +304,12 @@ export default function WhatsAppApp() {
                       : 'rounded-br-sm bg-[#202C33] text-white'
                   }`}
                 >
+                  {activeChat.isGroup && (
+                    <p className="mb-0.5 text-[11px] font-semibold"
+                      style={{ color: groupMembers.find((member) => member.id === m.senderId)?.color || '#A78BFA' }}>
+                      {m.sender === 'me' ? 'منار · أنتِ' : m.senderName || 'ريم'}
+                    </p>
+                  )}
                   {m.type === 'voice' ? (
                     <div className="flex items-center gap-2">
                       <Mic className="h-4 w-4" />
@@ -404,21 +438,32 @@ export default function WhatsAppApp() {
             onClick={() => setShowContactInfo(false)}
           >
             <div
-              className="rounded-t-[24px] bg-[#202C33] p-6"
+              className="no-scrollbar max-h-[80%] overflow-y-auto rounded-t-[24px] bg-[#202C33] p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-col items-center pb-6">
-                <div
-                  className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white"
-                  style={{ backgroundColor: activeContact.color }}
-                >
-                  {activeContact.name[0]}
-                </div>
+                <ContactAvatar contact={activeContact} size="info" />
                 <h3 className="mt-3 text-xl font-semibold text-white">
                   {activeContact.name}
                 </h3>
                 <p className="text-sm text-white/60">{activeContact.about}</p>
+                {activeChat.isGroup && <p className="mt-1 text-sm text-[#25D366]">مجموعة · ٥ أعضاء</p>}
               </div>
+              {activeChat.isGroup && (
+                <div className="mb-4 border-t border-white/10 pt-4">
+                  <p className="mb-3 text-sm font-semibold text-white/70">الأعضاء · ٥</p>
+                  {groupMembers.map((member) => (
+                    <div key={member.id} className="flex items-center gap-3 py-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+                        style={{ backgroundColor: member.color }}>{member.name.charAt(0)}</div>
+                      <div>
+                        <p className="text-sm text-white">{member.name}{member.id === 'me' ? ' (أنتِ)' : ''}</p>
+                        <p className="text-[11px] text-white/50">{member.id === 'me' ? 'مشرفة المجموعة' : 'زميلة المشروع'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-around border-t border-white/10 pt-4 text-white/80">
                 <button className="flex flex-col items-center gap-1 text-[#25D366]">
                   <Phone className="h-5 w-5" />
@@ -474,21 +519,16 @@ export default function WhatsAppApp() {
             <button
               key={chat.id}
               onClick={() => {
+                setFocusMessageId(null);
                 setActiveChatId(chat.id);
-                setChats((prev) =>
-                  prev.map((c) =>
-                    c.id === chat.id ? { ...c, unread: 0 } : c
-                  )
-                );
+                setShowContactInfo(false);
+                setDraft('');
+                if (activeApp === 'whatsapp' && screenMode === 'app' && !locked) setActiveWhatsAppConversation(chat.id);
+                markWhatsAppChatRead(chat.id);
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-right transition active:bg-white/5"
             >
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
-                style={{ backgroundColor: contact?.color }}
-              >
-                {contact?.name[0]}
-              </div>
+              <ContactAvatar contact={contact} />
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-center justify-between">
                   <span className="truncate text-[15px] font-semibold text-white">
@@ -500,6 +540,7 @@ export default function WhatsAppApp() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="truncate text-[13px] text-white/60">
+                    {chat.isGroup && last ? `${last.sender === 'me' ? 'أنتِ' : last.senderName || 'ريم'}: ` : ''}
                     {last?.type === 'voice'
                       ? 'رسالة صوتية'
                       : last?.text}
@@ -617,7 +658,7 @@ export default function WhatsAppApp() {
             أن
           </div>
           <div>
-            <p className="text-lg font-semibold text-white">أنا</p>
+            <p className="text-lg font-semibold text-white">منار</p>
             <p className="text-[13px] text-white/60">
               متاح · ٠٥٥١٢٣٤٥٦٧
             </p>
@@ -641,8 +682,9 @@ export default function WhatsAppApp() {
 
         <button
           onClick={() => {
-            localStorage.removeItem('wa-chats');
-            setChats(SAMPLE_CHATS);
+            replyTimers.current.forEach(clearTimeout);
+            replyTimers.current.clear();
+            setChats(JSON.parse(JSON.stringify(SAMPLE_CHATS)) as WAChat[]);
           }}
           className="mt-6 w-full rounded-[12px] bg-[#202C33] px-4 py-3 text-center text-[15px] text-[#FF3B30]"
         >
