@@ -1,6 +1,7 @@
 import { RAMADAN_NOTIFICATIONS } from '../apps/ninja/data';
 import { Email, SAMPLE_EMAILS, SMSContact, SMSConversation, SMS_CONTACTS, SMS_CONVERSATIONS } from './inboxStore';
 import { makeMessageId, readStore, writeStore } from './storage';
+import { ensureXStore, getOwnXPosts, incrementXPostActivity, isOwnXPost, readXPost, readXPosts, X_POSTS_KEY, xPostTarget } from './xStore';
 
 export type SocialAppId = 'instagram' | 'x';
 export interface SocialMessage {
@@ -19,6 +20,8 @@ export interface SocialThread {
 export interface XActivity {
   id: string;
   actor: string;
+  /** Real stored post belonging to the signed-in account; never a body-text inference. */
+  postId: string;
   type: 'like' | 'repost' | 'follow' | 'mention';
   body: string;
   timestamp: number;
@@ -35,10 +38,8 @@ export const SOCIAL_KEYS: Record<SocialAppId, string> = {
   instagram: 'instagram-dm-threads-v1', x: 'x-dm-threads-v1',
 };
 export const X_ACTIVITY_KEY = 'x-activity-v1';
-export const X_ACTIVITY_SEED: XActivity[] = [
-  { id: 'x-activity-seed-1', actor: 'زهراء علي', type: 'like', body: 'أعجبت بمنشور Ninja عن عرض رمضان', timestamp: Date.now() - 35 * 60000, read: true },
-  { id: 'x-activity-seed-2', actor: 'زهراء زهير', type: 'repost', body: 'أعادت نشر منشور Ninja عن التوصيل المجاني', timestamp: Date.now() - 2 * 3600000, read: true },
-];
+// Old body-only seeds described nonexistent posts. Do not manufacture a history of likes.
+export const X_ACTIVITY_SEED: XActivity[] = [];
 function socialSeed(appId: SocialAppId): SocialThread[] {
   return [
     { id: `${appId}-zahra-ali`, name: 'زهراء علي', color: '#AF52DE', messages: [
@@ -74,8 +75,11 @@ function normalizeSocialNames(appId: SocialAppId): void {
 function normalizeXActivities(): void {
   const current = readStore<XActivity[] | null>(X_ACTIVITY_KEY, null);
   if (!Array.isArray(current)) return;
-  const normalized = current.filter((item) => /Ninja|نينجا/i.test(item.body));
-  if (normalized.length !== current.length) writeStore(X_ACTIVITY_KEY, normalized.length ? normalized : X_ACTIVITY_SEED);
+  const normalized = current.filter((item) => {
+    const post = item.postId ? readXPost(item.postId) : undefined;
+    return post && isOwnXPost(post);
+  });
+  if (normalized.length !== current.length) writeStore(X_ACTIVITY_KEY, normalized);
 }
 function normalizeMailStore(): void {
   const current = readStore<Email[] | null>('mail-emails', null);
@@ -89,6 +93,7 @@ function normalizeMailStore(): void {
 /** Apps do not have to be opened for an incoming message to be stored. */
 export function ensureInboxStores() {
   if (typeof window === 'undefined') return;
+  ensureXStore();
   seedArray('mail-emails', SAMPLE_EMAILS);
   normalizeMailStore();
   seedArray('messages.contacts', SMS_CONTACTS);
@@ -111,6 +116,7 @@ export interface DeliveredInboxMessage {
   body: string;
   targetId: string;
   messageId: string;
+  postId?: string;
   badge: number;
 }
 const EMAIL_POOL = [
@@ -139,16 +145,7 @@ const SOCIAL_POOL: Record<SocialAppId, string[]> = {
   instagram: ['شفت الستوري حقك، شكل القهوة يفوز!', 'عرض نينجا الجديد على التمور شكله لذيذ.', 'شفتي وصفة السمبوسة اللي نزلها حساب Ninja؟', 'توصيل نينجا اليوم كان سريع مرة.', 'صورت لك سفرة رمضان، بس لا تعتمدين صورة كوب القهوة بالغلط.', 'التمر والقهوة ثنائي ما يختلف عليه اثنين.', 'منشور الفوانيس عند Ninja جميل.', 'وش رأيك بعرض التوصيل المجاني؟', 'أرسلت لك رابط حملة رمضان.', 'القطايف شكلها يفتح النفس.', 'جربت أطلب مستلزمات السحور ووصلت بدري.', 'حساب Ninja نزل وصفة جديدة اليوم.', 'العروض الرمضانية هذا العام متنوعة.', 'باقي أجرب صندوق الضيافة.', 'أحس أجواء رمضان بدأت من منشورات Ninja.', 'إذا خلصنا نحتفل بقهوة وطلب حلو 😂'],
   x: ['منشور Ninja عن سفرة الإفطار أخذ تفاعلاً كبيراً.', 'عرض التوصيل المجاني من Ninja مناسب للعزائم.', 'شفت ثريد Ninja عن تجهيزات رمضان؟', 'منشور التمور اليوم مرتب جداً.', 'إعادة نشر وصفة القطايف كانت فكرة موفقة.', 'حساب Ninja أعلن عن صندوق السحور.', 'الفوانيس في آخر منشور جميلة.', 'كود RAMADAN20 ظاهر في المنشور المثبت.', 'التوصيل السريع هو أكثر شيء يعجبني في Ninja.', 'منشور القهوة العربية انتشر بسرعة.', 'عرض الضيافة الرمضانية يستحق التجربة.', 'المنتجات الجديدة نزلت في بروفايل Ninja.', 'منشور المشروبات مناسب للأجواء الحارة.', 'عروض Ninja هذا الأسبوع واضحة ومباشرة.', 'منشور التمر حقق تفاعلاً ممتازاً.', 'البروفايل مرتب بعد تحديث منشورات رمضان.'],
 };
-const X_ACTIVITY_POOL: Array<Pick<XActivity, 'actor' | 'type' | 'body'>> = [
-  { actor: 'زهراء علي', type: 'like', body: 'أعجبت بمنشور Ninja عن عرض رمضان' }, { actor: 'زهراء زهير', type: 'repost', body: 'أعادت نشر منشور Ninja عن التوصيل المجاني' },
-  { actor: 'فرقان', type: 'follow', body: 'بدأ بمتابعة بروفايل Ninja' }, { actor: 'فاطمه ماجد', type: 'mention', body: 'ذكرت حساب Ninja في منشور عن سفرة الإفطار' },
-  { actor: 'ريم الدوسري', type: 'like', body: 'أعجبت بمنشور Ninja عن التمور' }, { actor: 'زهراء علي', type: 'repost', body: 'أعادت نشر منشور Ninja عن القطايف' },
-  { actor: 'زهراء زهير', type: 'like', body: 'أعجبت بمنشور Ninja عن صندوق السحور' }, { actor: 'فرقان', type: 'repost', body: 'أعاد نشر منشور Ninja عن الفوانيس' },
-  { actor: 'فاطمه ماجد', type: 'like', body: 'أعجبت بالمنشور المثبت لحساب Ninja' }, { actor: 'ريم الدوسري', type: 'follow', body: 'بدأت بمتابعة بروفايل Ninja' },
-  { actor: 'زهراء علي', type: 'mention', body: 'ذكرت حساب Ninja في منشور عن القهوة العربية' }, { actor: 'زهراء زهير', type: 'like', body: 'أعجبت بمنشور Ninja عن عرض الضيافة' },
-  { actor: 'فرقان', type: 'repost', body: 'أعاد نشر منشور Ninja عن المشروبات الرمضانية' }, { actor: 'فاطمه ماجد', type: 'like', body: 'أعجبت بمنشور Ninja عن التوصيل السريع' },
-  { actor: 'ريم الدوسري', type: 'repost', body: 'أعادت نشر منشور Ninja عن كود RAMADAN20' }, { actor: 'زهراء علي', type: 'follow', body: 'بدأت بمتابعة بروفايل Ninja' },
-];
+const X_LIKE_ACTORS = ['زهراء علي', 'زهراء زهير', 'ريم الدوسري', 'فاطمة ماجد', 'نورة القحطاني', 'أحمد العتيبي', 'سارة الحربي', 'محمد سالم', 'جود صالح', 'لينا أحمد', 'هند يوسف', 'دانة فهد', 'عبدالله الشمري', 'خالد المطيري', 'ماجد ناصر', 'بدر العبدالله'];
 function nextIndex(key: string, length: number): number {
   const cursor = readStore<number>(`sim-cursor-${key}`, 0);
   const valid = typeof cursor === 'number' && Number.isFinite(cursor) ? cursor : 0;
@@ -188,11 +185,28 @@ export function deliverInboxMessage(appId: DeliveredInboxMessage['appId']): Deli
     return { id, appId, title: sample.title, body: sample.body, targetId: id, messageId: id, badge: next.filter((m) => !m.read).length };
   }
   if (appId === 'x') {
-    const sample = X_ACTIVITY_POOL[nextIndex('x-activity', X_ACTIVITY_POOL.length)];
-    const activity: XActivity = { id, ...sample, timestamp, read: false };
-    const next = [activity, ...readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED)];
-    if (!writeStore(X_ACTIVITY_KEY, next)) return null;
-    return { id, appId, title: sample.actor, body: sample.body, targetId: 'x-activity', messageId: id, badge: next.filter((item) => !item.read).length };
+    const ownPosts = getOwnXPosts().sort((a, b) => b.timestamp - a.timestamp);
+    if (!ownPosts.length) return null;
+    const current = readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED);
+    const start = nextIndex('x-activity', X_LIKE_ACTORS.length);
+    // A simulated person can like each real own post once, never another person's post.
+    for (let offset = 0; offset < X_LIKE_ACTORS.length; offset += 1) {
+      const actor = X_LIKE_ACTORS[(start + offset) % X_LIKE_ACTORS.length];
+      const post = ownPosts.find((p) => !current.some((a) => a.actor === actor && a.postId === p.id && a.type === 'like'));
+      if (!post) continue;
+      const excerpt = post.text.replace(/\s+/g, ' ').slice(0, 74);
+      const body = `أعجب بمنشورك: «${excerpt}${post.text.replace(/\s+/g, ' ').length > 74 ? '…' : ''}»`;
+      const activity: XActivity = { id, actor, type: 'like', postId: post.id, body, timestamp, read: false };
+      const previousPosts = readXPosts();
+      if (!incrementXPostActivity(post.id, 'like')) return null;
+      const next = [activity, ...current];
+      if (!writeStore(X_ACTIVITY_KEY, next)) {
+        writeStore(X_POSTS_KEY, previousPosts);
+        return null;
+      }
+      return { id, appId, title: actor, body, postId: post.id, targetId: xPostTarget(post.id), messageId: id, badge: next.filter((item) => !item.read).length };
+    }
+    return null;
   }
   const index = nextIndex(appId, SOCIAL_POOL[appId].length);
   const seeds = SOCIAL_SEEDS[appId];

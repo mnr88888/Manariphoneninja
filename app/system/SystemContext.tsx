@@ -10,7 +10,9 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
-import { ensureInboxStores } from './inboxDelivery';
+import { ensureInboxStores, XActivity, X_ACTIVITY_KEY, X_ACTIVITY_SEED, SocialThread, SOCIAL_KEYS } from './inboxDelivery';
+import { readStore, writeStore } from './storage';
+import { ensureXStore, isOwnXPost, readXPost, xPostTarget } from './xStore';
 
 /* ============================================================
  * Types
@@ -34,6 +36,7 @@ export interface SystemNotification {
   /** Deep-link destination inside the source app (e.g. a message id) */
   targetId?: string;
   messageId?: string;
+  postId?: string;
 }
 
 export type Appearance = 'light' | 'dark' | 'auto';
@@ -239,7 +242,7 @@ interface SystemContextValue {
   markNotificationRead: (n: SystemNotification) => void;
   openNotification: (n: SystemNotification) => void;
   /** Set when a notification is tapped; consumed by the target app */
-  pendingDeepLink: { appId: string; targetId?: string; messageId?: string; ts: number } | null;
+  pendingDeepLink: { appId: string; targetId?: string; messageId?: string; postId?: string; ts: number } | null;
   consumeDeepLink: () => void;
 
   // Badges
@@ -401,9 +404,22 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     ensureInboxStores();
     const storedNotifs = loadJSON<SystemNotification[]>('ios-notifications', []);
     // Remove the previous hard-coded cards: they did not represent delivered messages.
-    setNotifications(Array.isArray(storedNotifs) ? storedNotifs.filter((n) => !/^s[1-5]$/.test(n.id) && (n.appId !== 'x' || (n.targetId === 'x-activity' && /Ninja|نينجا/i.test(n.body)))).map((n) =>
+    const xActivities = readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED);
+    const xThreads = readStore<SocialThread[]>(SOCIAL_KEYS.x, []);
+    const linkedNotifs = Array.isArray(storedNotifs) ? storedNotifs.flatMap((n) => {
+      if (/^s[1-5]$/.test(n.id)) return [];
+      if (n.appId !== 'x') return [n];
+      const activity = xActivities.find((item) => item.id === (n.messageId ?? n.id));
+      const post = activity ? readXPost(activity.postId) : undefined;
+      if (activity && post && isOwnXPost(post)) {
+        return [{ ...n, title: activity.actor, body: activity.body, postId: post.id, targetId: xPostTarget(post.id), messageId: activity.id }];
+      }
+      // Keep genuine direct-message notifications; discard the old body-only fake activity cards.
+      return xThreads.some((thread) => thread.id === n.targetId && thread.messages.some((message) => message.id === (n.messageId ?? n.id))) ? [n] : [];
+    }) : [];
+    setNotifications(linkedNotifs.map((n) =>
       n.id.startsWith('ninja-eid-') ? { ...n, id: n.id.replace('ninja-eid-', 'ninja-ramadan-'), targetId: n.id.replace('ninja-eid-', 'ninja-ramadan-') } : n
-    ) : []);
+    ));
 
     // Wallpaper: migrate from legacy single-gradient storage if present
     const legacy = loadJSON<string | null>('ios-wallpaper', null);
@@ -508,6 +524,12 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const dismissBanner = useCallback(() => setBanner(null), []);
 
   const addNotification = useCallback((n: NewNotification) => {
+    if (n.appId === 'x' && (n.postId || n.targetId?.startsWith('x-post:') || n.targetId === 'x-activity')) {
+      const activity = readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED).find((item) => item.id === (n.messageId ?? n.id));
+      const post = activity ? readXPost(activity.postId) : undefined;
+      if (!activity || !post || !isOwnXPost(post)) return;
+      n = { ...n, title: activity.actor, body: activity.body, postId: post.id, targetId: xPostTarget(post.id), messageId: activity.id };
+    }
     const s = settingsRef.current;
     const appAllowed = s.appNotifs[n.appId] !== false;
     if (!appAllowed || s.focusMode) return;
@@ -555,6 +577,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     appId: string;
     targetId?: string;
     messageId?: string;
+    postId?: string;
     ts: number;
   } | null>(null);
 
@@ -563,7 +586,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const openNotification = useCallback(
     (n: SystemNotification) => {
       markNotificationRead(n);
-      setPendingDeepLink({ appId: n.appId, targetId: n.targetId ?? n.id, messageId: n.messageId, ts: Date.now() });
+      const activity = n.appId === 'x' ? readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED).find((item) => item.id === (n.messageId ?? n.id)) : undefined;
+      const postId = activity?.postId ?? n.postId;
+      setPendingDeepLink({ appId: n.appId, targetId: postId ? xPostTarget(postId) : n.targetId ?? n.id, messageId: n.messageId, postId, ts: Date.now() });
     },
     [markNotificationRead]
   );
@@ -607,11 +632,15 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (storedProfile) setNinjaProfile({ ...DEFAULT_NINJA_PROFILE, ...storedProfile });
   }, []);
 
-  useEffect(() => { if (hydrated) saveJSON('ninja-campaign', ninjaCampaign); }, [ninjaCampaign, hydrated]);
-  useEffect(() => { if (hydrated) saveJSON('ninja-profile', ninjaProfile); }, [ninjaProfile, hydrated]);
+  useEffect(() => {
+    if (hydrated && writeStore('ninja-campaign', ninjaCampaign)) ensureXStore();
+  }, [ninjaCampaign, hydrated]);
+  useEffect(() => {
+    if (hydrated && writeStore('ninja-profile', ninjaProfile)) ensureXStore();
+  }, [ninjaProfile, hydrated]);
 
   const updateNinjaCampaign = useCallback((patch: Partial<NinjaCampaign>) => {
-    setNinjaCampaign((prev) => ({ ...prev, ...patch }));
+    setNinjaCampaign((prev) => ({ ...prev, ...patch, hashtag: NINJA_HASHTAG }));
   }, []);
 
   const updateNinjaProfile = useCallback((patch: Partial<NinjaProfile>) => {

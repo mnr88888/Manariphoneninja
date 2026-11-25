@@ -15,10 +15,16 @@ const DELIVERY_LEDGER_KEY = 'sim-delivery-ledger-v3';
 interface DeliveryLedger {
   counts: Partial<Record<SimulatedAppId, number>>;
   bodies: Partial<Record<SimulatedAppId, string[]>>;
+  xPostsLinked?: boolean;
 }
 
 function readLedger(): DeliveryLedger {
-  return readStore<DeliveryLedger>(DELIVERY_LEDGER_KEY, { counts: {}, bodies: {} });
+  const ledger = readStore<DeliveryLedger>(DELIVERY_LEDGER_KEY, { counts: {}, bodies: {} });
+  if (ledger.xPostsLinked) return ledger;
+  // The former X quota represented unlinked fabricated activity. Reset X only; preserve other apps.
+  const migrated = { ...ledger, counts: { ...ledger.counts, x: 0 }, bodies: { ...ledger.bodies, x: [] }, xPostsLinked: true };
+  writeStore(DELIVERY_LEDGER_KEY, migrated);
+  return migrated;
 }
 
 function canDeliver(appId: SimulatedAppId): boolean {
@@ -30,6 +36,7 @@ function rememberDelivery(appId: SimulatedAppId, body: string): void {
   const bodies = ledger.bodies[appId] ?? [];
   if (bodies.includes(body)) return;
   writeStore(DELIVERY_LEDGER_KEY, {
+    xPostsLinked: true,
     counts: { ...ledger.counts, [appId]: (ledger.counts[appId] ?? 0) + 1 },
     bodies: { ...ledger.bodies, [appId]: [...bodies, body] },
   });
@@ -47,8 +54,10 @@ export function sendIncomingForApp(appId: SimulatedAppId, addNotification: (n: N
   }
   const message = deliverInboxMessage(appId);
   if (!message) return false;
-  if (readLedger().bodies[appId]?.includes(message.body)) return false;
-  rememberDelivery(appId, message.body);
+  // Different people can like the same real post. Its text is not an event identity.
+  const deliveryKey = appId === 'x' ? message.id : message.body;
+  if (readLedger().bodies[appId]?.includes(deliveryKey)) return false;
+  rememberDelivery(appId, deliveryKey);
   addNotification(message);
   return true;
 }
@@ -69,7 +78,7 @@ export function useNotificationSimulation() {
     syncBadges();
     const changed = (event: Event) => {
       const key = event instanceof StorageEvent ? event.key : (event as CustomEvent<{key: string}>).detail?.key;
-      if (key && !['wa-chats', 'mail-emails', 'messages.conversations', 'instagram-dm-threads-v1', 'x-dm-threads-v1', 'ninja-message-inbox-v2'].includes(key)) return;
+      if (key && !['wa-chats', 'mail-emails', 'messages.conversations', 'instagram-dm-threads-v1', 'x-dm-threads-v1', 'x-activity-v1', 'ninja-message-inbox-v2'].includes(key)) return;
       syncBadges();
     };
     window.addEventListener(STORE_CHANGE_EVENT, changed);
@@ -91,7 +100,9 @@ export function useNotificationSimulation() {
           const index = Number.isFinite(cursor) ? cursor : 0;
           let appId = DELIVERY_SEQUENCE[index % DELIVERY_SEQUENCE.length];
           if (appId === 'whatsapp' && latest.current.settings.whatsappAutoMessages === false) appId = 'mail';
-          if (sendIncomingForApp(appId, latest.current.addNotification)) writeStore('sim-feed-cursor-v2', index + 1);
+          sendIncomingForApp(appId, latest.current.addNotification);
+          // An app with no eligible own posts or an exhausted quota must not freeze all other apps.
+          writeStore('sim-feed-cursor-v2', index + 1);
         }
         schedule(DELIVERY_INTERVAL_MS);
       }, delay);
