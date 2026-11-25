@@ -10,7 +10,7 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
-import { EID_NOTIFICATIONS } from '../apps/ninja/data';
+import { ensureInboxStores } from './inboxDelivery';
 
 /* ============================================================
  * Types
@@ -33,6 +33,7 @@ export interface SystemNotification {
   read?: boolean;
   /** Deep-link destination inside the source app (e.g. a message id) */
   targetId?: string;
+  messageId?: string;
 }
 
 export type Appearance = 'light' | 'dark' | 'auto';
@@ -66,6 +67,8 @@ export interface SystemSettings {
   iconAppearance: 'light' | 'dark' | 'tinted' | 'auto';
   showBatteryPercentage: boolean;
   lowPowerMode: boolean;
+  /** One automatic feed for all simulated apps. */
+  autoNotifications: boolean;
   /** Automatic simulated incoming WhatsApp messages */
   whatsappAutoMessages: boolean;
   // Per-app notification permissions (appId -> enabled)
@@ -186,6 +189,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   showBatteryPercentage: true,
   lowPowerMode: false,
   whatsappAutoMessages: true,
+  autoNotifications: true,
   appNotifs: {},
 };
 
@@ -235,7 +239,7 @@ interface SystemContextValue {
   markNotificationRead: (n: SystemNotification) => void;
   openNotification: (n: SystemNotification) => void;
   /** Set when a notification is tapped; consumed by the target app */
-  pendingDeepLink: { appId: string; targetId?: string; ts: number } | null;
+  pendingDeepLink: { appId: string; targetId?: string; messageId?: string; ts: number } | null;
   consumeDeepLink: () => void;
 
   // Badges
@@ -381,6 +385,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [homePages, setHomePages] = useState<string[][]>([]);
   const [clockHour, setClockHour] = useState(new Date().getHours());
 
+  const [hydrated, setHydrated] = useState(false);
+
   // ---- Hydrate from localStorage on mount ----
   useEffect(() => {
     const storedContacts = loadJSON<SystemContact[] | null>('ios-contacts', null);
@@ -392,35 +398,12 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     const storedBadges = loadJSON<Record<string, number> | null>('ios-badges', null);
     if (storedBadges) setBadges(storedBadges);
 
-    const storedNotifs = loadJSON<SystemNotification[] | null>('ios-notifications', null);
-    if (storedNotifs && storedNotifs.length > 0) {
-      // Migrate legacy Ninja ids (ninja-eid-N) so they match the Ninja inbox ids
-      setNotifications(
-        storedNotifs.map((n) =>
-          n.id.startsWith('ninja-eid-')
-            ? { ...n, id: n.id.replace('ninja-eid-', 'ninja-ramadan-'), targetId: n.id.replace('ninja-eid-', 'ninja-ramadan-') }
-            : n
-        )
-      );
-    } else {
-      // Seed on first run. Ninja notifications use stable ids shared with the
-      // Ninja inbox (ninja-eid-N) so both views stay synchronized and no
-      // duplicates appear after a refresh.
-      const ninjaSeeds: SystemNotification[] = EID_NOTIFICATIONS.map((n, i) => ({
-        id: `ninja-ramadan-${i}`,
-        appId: 'ninja',
-        title: n.title,
-        body: n.body,
-        targetId: `ninja-ramadan-${i}`,
-        timestamp: Date.now() - (i + 1) * 30 * 60000,
-      }));
-      setNotifications([
-        { id: 's1', appId: 'whatsapp', title: 'واتساب', body: 'أحمد العتيبي: عيدكم مبارك! 🌙', timestamp: Date.now() - 5 * 60000 },
-        ...ninjaSeeds,
-        { id: 's2', appId: 'messages', title: 'الرسائل', body: 'نورة القحطاني: هل جهزت للتجمعات؟', timestamp: Date.now() - 18 * 60000 },
-        { id: 's4', appId: 'mail', title: 'البريد', body: 'فاتورة طلبك الأخير من نينجا', timestamp: Date.now() - 90 * 60000 },
-      ]);
-    }
+    ensureInboxStores();
+    const storedNotifs = loadJSON<SystemNotification[]>('ios-notifications', []);
+    // Remove the previous hard-coded cards: they did not represent delivered messages.
+    setNotifications(Array.isArray(storedNotifs) ? storedNotifs.filter((n) => !/^s[1-5]$/.test(n.id)).map((n) =>
+      n.id.startsWith('ninja-eid-') ? { ...n, id: n.id.replace('ninja-eid-', 'ninja-ramadan-'), targetId: n.id.replace('ninja-eid-', 'ninja-ramadan-') } : n
+    ) : []);
 
     // Wallpaper: migrate from legacy single-gradient storage if present
     const legacy = loadJSON<string | null>('ios-wallpaper', null);
@@ -458,18 +441,19 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       if (pages.length === 0) pages.push([]);
       setHomePages(pages);
     });
+    setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- Persist on change ----
-  useEffect(() => saveJSON('ios-contacts', contacts), [contacts]);
-  useEffect(() => saveJSON('ios-settings', settings), [settings]);
-  useEffect(() => saveJSON('ios-badges', badges), [badges]);
-  useEffect(() => saveJSON('ios-notifications', notifications), [notifications]);
-  useEffect(() => saveJSON('ios-wallpaper-v2', wallpaper), [wallpaper]);
-  useEffect(() => saveJSON('ios-wallpaper-uploads', uploadedWallpapers), [uploadedWallpapers]);
-  useEffect(() => saveJSON('ios-removed-apps', removedApps), [removedApps]);
-  useEffect(() => saveJSON('ios-home-pages', homePages), [homePages]);
+  useEffect(() => { if (hydrated) saveJSON('ios-contacts', contacts); }, [contacts, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-settings', settings); }, [settings, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-badges', badges); }, [badges, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-notifications', notifications); }, [notifications, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-wallpaper-v2', wallpaper); }, [wallpaper, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-wallpaper-uploads', uploadedWallpapers); }, [uploadedWallpapers, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-removed-apps', removedApps); }, [removedApps, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ios-home-pages', homePages); }, [homePages, hydrated]);
 
   // ---- Hourly tick for auto appearance ----
   useEffect(() => {
@@ -555,18 +539,22 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
   const clearNotifications = useCallback(() => {
     setNotifications([]);
-    setBadges({});
+    setBanner(null);
   }, []);
 
   const markNotificationRead = useCallback((n: SystemNotification) => {
     if (n.read) return;
     setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-    setBadges((prev) => ({ ...prev, [n.appId]: Math.max(0, (prev[n.appId] ?? 1) - 1) }));
+    // App badges mirror the unread messages in the app store, not the number of cards.
+    if (!['whatsapp', 'mail', 'messages', 'ninja', 'instagram', 'x'].includes(n.appId)) {
+      setBadges((prev) => ({ ...prev, [n.appId]: Math.max(0, (prev[n.appId] ?? 1) - 1) }));
+    }
   }, []);
 
   const [pendingDeepLink, setPendingDeepLink] = useState<{
     appId: string;
     targetId?: string;
+    messageId?: string;
     ts: number;
   } | null>(null);
 
@@ -575,13 +563,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const openNotification = useCallback(
     (n: SystemNotification) => {
       markNotificationRead(n);
-      setPendingDeepLink({ appId: n.appId, targetId: n.targetId ?? n.id, ts: Date.now() });
+      setPendingDeepLink({ appId: n.appId, targetId: n.targetId ?? n.id, messageId: n.messageId, ts: Date.now() });
     },
     [markNotificationRead]
   );
 
   const setBadge = useCallback((appId: string, count: number) => {
-    setBadges((prev) => ({ ...prev, [appId]: count }));
+    setBadges((prev) => prev[appId] === count ? prev : { ...prev, [appId]: count });
   }, []);
 
   // ---- Settings ----
@@ -619,8 +607,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (storedProfile) setNinjaProfile({ ...DEFAULT_NINJA_PROFILE, ...storedProfile });
   }, []);
 
-  useEffect(() => saveJSON('ninja-campaign', ninjaCampaign), [ninjaCampaign]);
-  useEffect(() => saveJSON('ninja-profile', ninjaProfile), [ninjaProfile]);
+  useEffect(() => { if (hydrated) saveJSON('ninja-campaign', ninjaCampaign); }, [ninjaCampaign, hydrated]);
+  useEffect(() => { if (hydrated) saveJSON('ninja-profile', ninjaProfile); }, [ninjaProfile, hydrated]);
 
   const updateNinjaCampaign = useCallback((patch: Partial<NinjaCampaign>) => {
     setNinjaCampaign((prev) => ({ ...prev, ...patch }));
