@@ -637,7 +637,7 @@ export default function NinjaApp() {
               <div className="p-2.5">
                 <span className="line-clamp-1 text-[13px] font-extrabold text-black">{b.name}</span>
                 <span className="mt-0.5 line-clamp-2 min-h-[28px] text-[10px] leading-snug text-black/50">
-                  {b.description}
+                  {b.shortDescription ?? b.description}
                 </span>
                 <div className="mt-1.5 flex items-center justify-between">
                   <div className="flex flex-col">

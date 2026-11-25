@@ -24,7 +24,10 @@ export interface NinjaBanner {
 export interface NinjaBundle {
   id: string;
   name: string;
+  /** Full description (product details page) */
   description: string;
+  /** Short line for the bundle card (fits 2 lines) */
+  shortDescription?: string;
   price: number;
   oldPrice: number;
   emoji: string;
@@ -154,7 +157,8 @@ export const NINJA_BUNDLES: NinjaBundle[] = [
   {
     id: 'bundle-iftar',
     name: 'صندوق سفرة الإفطار',
-    description: 'تمر مجدول، سمبوسة لحم، شوربة شعير، وعصير قمر الدين — سفرتك جاهزة قبل الأذان.',
+    description: 'صندوق إفطار متكامل بأطباق مقسّمة: حمص ومتبّل، أجبان ولبنة، زيتون أسود ومخللات، بيض مسلوق، طبق مطبوخ بالطماطم، مع خبز عربي طازج — سفرتك جاهزة قبل الأذان.',
+    shortDescription: 'حمص ومتبّل وأجبان وزيتون ومخللات مع خبز عربي طازج.',
     price: 99,
     oldPrice: 122,
     emoji: '🍽️',
@@ -164,7 +168,8 @@ export const NINJA_BUNDLES: NinjaBundle[] = [
   {
     id: 'bundle-suhoor',
     name: 'صندوق السحور',
-    description: 'فول مدمس، جبنة حلوم، لبن طازج، وبيض — سحور خفيف ومشبع يعينك على الصيام.',
+    description: 'صندوق سحور بأطباق ساخنة وجانبية: عجّة بالجبن والطماطم والأعشاب، فطائر مقرمشة، خبز طازج، مع أطباق الفول والحمص والصلصات والزبادي — سحور مشبع يعينك على الصيام.',
+    shortDescription: 'عجّة بالجبن والطماطم، فطائر، خبز، وأطباق فول وصلصات.',
     price: 69,
     oldPrice: 87,
     emoji: '🌙',
@@ -174,7 +179,8 @@ export const NINJA_BUNDLES: NinjaBundle[] = [
   {
     id: 'bundle-hospitality',
     name: 'صندوق الضيافة الرمضانية',
-    description: 'قهوة عربية، تمر مجدول، ودلة فاخرة لاستقبال ضيوفكم بعد التراويح.',
+    description: 'صينية مقبلات رمضانية متنوعة تكفي الضيوف: ورق عنب بدبس الرمان، فطائر ومعجنات صغيرة، رقائق مقرمشة محشية، وسمبوسة، مع شرائح الليمون — ضيافة جاهزة بعد التراويح.',
+    shortDescription: 'ورق عنب بدبس الرمان، فطائر، رقائق وسمبوسة مقرمشة.',
     price: 129,
     oldPrice: 153,
     emoji: '☕',
@@ -184,7 +190,8 @@ export const NINJA_BUNDLES: NinjaBundle[] = [
   {
     id: 'bundle-sweets',
     name: 'صندوق حلويات رمضان',
-    description: 'قطايف بالقشطة، كنافة نابلسية، ومعمول التمر — حلا السفرة كاملاً.',
+    description: 'علبة رولز القرفة الصغيرة بتغطيات متنوعة: كريمة بيضاء، فستق، صوص الشوكولاتة، ومكسرات مقرمشة — حلا خفيف للسهرة مع القهوة.',
+    shortDescription: 'رولز قرفة صغيرة بالكريمة والفستق والشوكولاتة والمكسرات.',
     price: 85,
     oldPrice: 102,
     emoji: '🥮',
