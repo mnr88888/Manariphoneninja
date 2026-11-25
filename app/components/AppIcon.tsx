@@ -48,8 +48,8 @@ export default function AppIcon({
           pressed ? 'icon-press scale-90' : 'scale-100'
         }`}
         style={{
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          backgroundColor: mode === 'light' ? '#FFFFFF' : '#1C1C1E',
+          boxShadow: 'none',
+          backgroundColor: 'transparent',
         }}
       >
         {/* Real image artwork */}
@@ -58,7 +58,7 @@ export default function AppIcon({
           src={app.imageIcon}
           alt=""
           draggable={false}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain"
           style={
             mode === 'dark'
               ? { filter: 'brightness(0.62) saturate(0.85)' }
