@@ -18,21 +18,18 @@ export interface SimPhoto {
   deleted?: boolean;
 }
 
-const GRADIENTS = [
-  'linear-gradient(135deg, #FF9A56 0%, #FFD46B 100%)',
-  'linear-gradient(135deg, #42A5F5 0%, #90CAF9 100%)',
-  'linear-gradient(135deg, #66BB6A 0%, #C5E1A5 100%)',
-  'linear-gradient(135deg, #AB47BC 0%, #E1BEE7 100%)',
-  'linear-gradient(135deg, #EF5350 0%, #FFAB91 100%)',
-  'linear-gradient(135deg, #26C6DA 0%, #80DEEA 100%)',
-  'linear-gradient(135deg, #8D6E63 0%, #D7CCC8 100%)',
-  'linear-gradient(135deg, #5C6BC0 0%, #9FA8DA 100%)',
+const LABELS = [
+  'الصورة ١', 'الصورة ٢', 'الصورة ٣', 'الصورة ٤', 'الصورة ٥', 'الصورة ٦',
 ];
 
-const LABELS = [
+// ضع الصور التي تريد ظهورها على Vercel داخل public/photos بهذه الأسماء.
+// المسار /photos/... يعمل في الموقع المنشور وينتقل مع GitHub.
+const DEFAULT_PHOTO_FILES = LABELS.map((_, index) => `/photos/photo-${index + 1}.jpg`);
+const LEGACY_DEFAULT_LABELS = new Set([
   'غروب', 'بحر', 'جبال', 'زهور', 'صحراء', 'مدينة', 'قهوة', 'سماء',
   'خليج', 'بحرية', 'نخيل', 'طيور',
-];
+]);
+const EMPTY_VISUAL = 'transparent';
 
 const PHOTO_DB_NAME = 'iphone-simulator-photos';
 const PHOTO_DB_VERSION = 1;
@@ -127,7 +124,8 @@ export function usePhotos() {
     'photos-gallery',
     LABELS.map((label, i) => ({
       id: 'p' + i,
-      gradient: GRADIENTS[i % GRADIENTS.length],
+      gradient: EMPTY_VISUAL,
+      imageUrl: DEFAULT_PHOTO_FILES[i],
       label,
       album: i % 3 === 0 ? 'الألبوم الرئيسي' : i % 3 === 1 ? 'السفر' : 'العائلة',
       favorite: i % 4 === 0,
@@ -135,6 +133,7 @@ export function usePhotos() {
     }))
   );
   const [temporaryPhotos, setTemporaryPhotos] = useState<SimPhoto[]>(temporaryCameraPhotos);
+  const migratedLegacyDefaults = useRef(false);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const imageUrlsRef = useRef<Record<string, string>>({});
   imageUrlsRef.current = imageUrls;
@@ -146,6 +145,16 @@ export function usePhotos() {
       temporaryPhotoListeners.delete(listener);
     };
   }, []);
+
+  useEffect(() => {
+    if (migratedLegacyDefaults.current) return;
+    migratedLegacyDefaults.current = true;
+    if (storedPhotos.some((photo) => !photo.imageKey && LEGACY_DEFAULT_LABELS.has(photo.label))) {
+      setPhotos((previous) => previous.filter(
+        (photo) => photo.imageKey || !LEGACY_DEFAULT_LABELS.has(photo.label),
+      ));
+    }
+  }, [setPhotos, storedPhotos]);
 
   // Ask the browser not to evict the album when the simulator is closed.
   // The original files live in IndexedDB and the album metadata in localStorage.
@@ -194,7 +203,7 @@ export function usePhotos() {
     const imageKey = id;
     const photo: SimPhoto = {
       id,
-      gradient: 'linear-gradient(135deg, #d1d5db 0%, #f3f4f6 100%)',
+      gradient: EMPTY_VISUAL,
       label,
       album,
       favorite: false,
@@ -209,7 +218,7 @@ export function usePhotos() {
     setPhotos((prev) => [
       {
         ...photo,
-        ...(saved ? { imageKey } : { gradient: typeof source === 'string' ? source : GRADIENTS[0] }),
+        ...(saved ? { imageKey } : { gradient: typeof source === 'string' ? source : EMPTY_VISUAL }),
       },
       ...prev,
     ]);
@@ -235,5 +244,3 @@ export function usePhotos() {
 
   return { photos, addPhoto, toggleFavorite, softDelete, restore, permanentDelete };
 }
-
-export const CAMERA_GRADIENTS = GRADIENTS;
