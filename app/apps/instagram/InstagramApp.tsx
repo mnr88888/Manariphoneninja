@@ -11,6 +11,18 @@ import {
 } from 'lucide-react';
 
 import { useSystem } from '../../system/SystemContext';
+import { useOS } from '../../OSContext';
+import { countSocialUnread, SOCIAL_KEYS, SOCIAL_SEEDS, SocialThread } from '../../system/inboxDelivery';
+import { STORE_CHANGE_EVENT } from '../../system/storage';
+import {
+  INSTAGRAM_ACTIVITY_KEY,
+  InstagramActivityStore,
+  ensureInstagramActivity,
+  getInstagramLikesForPosts,
+  getInstagramUnread,
+  markInstagramLikesRead,
+  readInstagramActivity,
+} from '../../system/instagramActivity';
 import { usePersistentState } from '../shared/utils';
 
 const NINJA_URL = 'https://ninja.com.sa';
@@ -166,7 +178,9 @@ export default function InstagramApp() {
     ninjaProfile,
     updateNinjaProfile,
     pendingDeepLink,
+    locked,
   } = useSystem();
+  const { activeApp, screenMode } = useOS();
 
   const [tab, setTab] = useState<Tab>('home');
   useEffect(() => {
@@ -178,6 +192,40 @@ export default function InstagramApp() {
     'ig-ninja-posts-v4',
     INITIAL_POSTS
   );
+  const [threads] = usePersistentState<SocialThread[]>(
+    SOCIAL_KEYS.instagram,
+    SOCIAL_SEEDS.instagram
+  );
+  const unreadMessages = countSocialUnread(threads);
+  const [postsHydrated, setPostsHydrated] = useState(false);
+  const [activityStore, setActivityStore] = useState<InstagramActivityStore>({
+    version: 1,
+    items: [],
+    initializedPosts: [],
+  });
+
+  useEffect(() => {
+    const reload = (event?: Event) => {
+      const key = event instanceof StorageEvent
+        ? event.key
+        : (event as CustomEvent<{ key: string }> | undefined)?.detail?.key;
+      if (event && key !== INSTAGRAM_ACTIVITY_KEY && key !== null) return;
+      setActivityStore(readInstagramActivity());
+    };
+    reload();
+    // The posts hook hydrates first; do not seed activity from INITIAL_POSTS.
+    setPostsHydrated(true);
+    window.addEventListener(STORE_CHANGE_EVENT, reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener(STORE_CHANGE_EVENT, reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (postsHydrated) ensureInstagramActivity(posts);
+  }, [posts, postsHydrated]);
 
   const [modal, setModal] = useState<
     'story' | 'comments' | 'campaign' | 'profile' | 'post' | 'share' | null
@@ -192,6 +240,18 @@ export default function InstagramApp() {
   const [shareTarget, setShareTarget] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
   const [sharedTo, setSharedTo] = useState<string[]>([]);
+
+  // This collection also backs the account profile: never source likes from DMs.
+  const likes = getInstagramLikesForPosts(activityStore, posts);
+  const unreadLikes = getInstagramUnread(activityStore, posts);
+
+  useEffect(() => {
+    if (tab !== 'activity' || modal || locked || activeApp !== 'instagram'
+      || screenMode !== 'app' || pendingDeepLink?.appId === 'instagram') return;
+    const visibleUnread = getInstagramLikesForPosts(activityStore, posts)
+      .filter((item) => !item.read).map((item) => item.id);
+    if (visibleUnread.length) markInstagramLikesRead(visibleUnread);
+  }, [tab, modal, locked, activeApp, screenMode, pendingDeepLink, activityStore, posts]);
 
   const bg = isDark ? 'bg-black' : 'bg-white';
   const text = isDark ? 'text-white' : 'text-[#262626]';
@@ -297,6 +357,23 @@ export default function InstagramApp() {
     setShareCopied(false);
     setModal('share');
   };
+
+  const renderUnreadBadge = (count: number) => count > 0 ? (
+    <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[10px] font-semibold leading-[17px] text-white">
+      {count > 99 ? '99+' : count}
+    </span>
+  ) : null;
+
+  const renderMessagesButton = () => (
+    <button
+      onClick={() => setTab('messages')}
+      aria-label={unreadMessages ? `الرسائل، ${unreadMessages} غير مقروءة` : 'الرسائل'}
+      className="relative"
+    >
+      <Send className={text} />
+      {renderUnreadBadge(unreadMessages)}
+    </button>
+  );
 
   const copyPostLink = async () => {
     try {
@@ -436,11 +513,14 @@ export default function InstagramApp() {
             <Plus className={text} />
           </button>
           <button
-            onClick={() => setTab('messages')}
-            aria-label="الرسائل"
+            onClick={() => setTab('activity')}
+            aria-label={unreadLikes ? `الإعجابات، ${unreadLikes} جديدة` : 'الإعجابات'}
+            className="relative"
           >
-            <Send className={text} />
+            <Heart className={text} />
+            {renderUnreadBadge(unreadLikes)}
           </button>
+          {renderMessagesButton()}
         </div>
       </div>
 
@@ -542,7 +622,63 @@ export default function InstagramApp() {
     </div>
   );
 
-  const renderActivity = () => <SocialInbox appId="instagram" activity onClose={() => setTab('home')} />;
+  const renderActivity = () => (
+    <section className={`flex min-h-0 flex-1 flex-col ${text}`} data-instagram-activity="likes">
+      <header className={`flex shrink-0 items-center gap-3 border-b px-4 py-3 ${border}`}>
+        <button aria-label="رجوع" onClick={() => setTab('home')}>
+          <ChevronRight size={23} />
+        </button>
+        <h2 className="flex-1 text-base font-bold">الإعجابات</h2>
+        {renderMessagesButton()}
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+        {likes.map((item) => {
+          const post = displayPosts.find((p) => p.id === item.postId && p.timestamp === item.postTimestamp);
+          if (!post) return null;
+          return (
+            <button
+              key={item.id}
+              data-like-post-id={post.id}
+              onClick={() => {
+                markInstagramLikesRead([item.id]);
+                setActivePost(post);
+                setModal('post');
+              }}
+              className={`flex w-full items-center gap-3 border-b px-4 py-4 text-right ${border} ${item.read ? '' : soft}`}
+              aria-label={`إعجاب ${item.actor} بمنشورك ${post.title}، فتح المنشور`}
+            >
+              <span className="relative shrink-0">
+                <img src={item.avatar} alt="" className="h-11 w-11 rounded-full object-cover" />
+                <span className={`absolute -bottom-1 -left-1 rounded-full p-1 ${bg}`}>
+                  <Heart size={12} className="fill-red-500 text-red-500" />
+                </span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] leading-relaxed">
+                  <b>{item.actor}</b>
+                  {item.otherLikes > 0
+                    ? ` و${item.otherLikes.toLocaleString('ar-SA')} آخرين أعجبوا بمنشورك`
+                    : ' أعجبت بمنشورك'}
+                </span>
+                <span className={`mt-1 block truncate text-xs ${muted}`}>{post.title || post.caption}</span>
+                <span className={`mt-1 block text-[10px] ${muted}`}>{relativeTime(item.timestamp)}</span>
+              </span>
+              <img src={post.image} alt={post.title} className="h-12 w-12 shrink-0 rounded-md object-cover" />
+            </button>
+          );
+        })}
+        {likes.length === 0 && (
+          <div className="px-8 py-16 text-center">
+            <Heart size={44} className={`mx-auto ${muted}`} />
+            <b className="mt-4 block">لا توجد إعجابات بعد</b>
+            <p className={`mt-2 text-sm leading-relaxed ${muted}`}>
+              ستظهر هنا إعجابات الآخرين على منشوراتك، والرسائل في قسم الرسائل المنفصل.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 
   const renderProfile = () => (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -632,20 +768,23 @@ export default function InstagramApp() {
       {tab !== 'messages' && (
         <nav className={`flex shrink-0 items-center justify-around border-t py-2 ${border} ${bg}`}>
           {[
-            { id: 'home' as Tab, icon: Home },
-            { id: 'explore' as Tab, icon: Search },
-            { id: 'reels' as Tab, icon: Clapperboard },
-            { id: 'activity' as Tab, icon: Heart },
-            { id: 'profile' as Tab, icon: User },
+            { id: 'home' as Tab, icon: Home, label: 'الرئيسية' },
+            { id: 'explore' as Tab, icon: Search, label: 'استكشاف' },
+            { id: 'reels' as Tab, icon: Clapperboard, label: 'ريلز' },
+            { id: 'activity' as Tab, icon: Heart, label: 'الإعجابات' },
+            { id: 'profile' as Tab, icon: User, label: 'الملف الشخصي' },
           ].map(item => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => setTab(item.id)}
-                className={`${text} ${tab === item.id ? '' : 'opacity-40'}`}
+                aria-label={item.label}
+                aria-current={tab === item.id ? 'page' : undefined}
+                className={`relative ${text} ${tab === item.id ? '' : 'opacity-40'}`}
               >
                 <Icon size={24} />
+                {item.id === 'activity' && renderUnreadBadge(unreadLikes)}
               </button>
             );
           })}
@@ -655,14 +794,15 @@ export default function InstagramApp() {
       {/* صفحة المنشور */}
       {modal === 'post' && activePost && (
         <div className={`absolute inset-0 z-[90] flex flex-col ${bg}`} dir="rtl">
-          <header className={`flex h-14 items-center justify-between border-b px-4 ${border}`}>
+          <div className="h-12 shrink-0" />
+          <header className={`flex h-14 shrink-0 items-center justify-between border-b px-4 ${border}`}>
             <button onClick={() => setModal(null)}>
               <ChevronRight className={text} />
             </button>
             <b className={text}>المنشور</b>
             <span />
           </header>
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {renderPost(displayPosts.find(p => p.id === activePost.id) || activePost)}
           </div>
         </div>
