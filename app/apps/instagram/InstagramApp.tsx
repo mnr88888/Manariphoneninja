@@ -104,9 +104,9 @@ const INITIAL_POSTS: Post[] = [
     author: 'Ninja',
     avatar: NINJA_AVATAR,
     image: '/eid-basket.png',
-    title: 'مسابقة العيد',
+    title: 'مسابقة رمضان',
     caption:
-      'العيد أحلى مع نينجا! 🎉💚 خمّن قيمة سلة العيد الموجودة بالصورة وادخل السحب للفوز بقسيمة 300 ريال. كل اللي عليك: تابع حسابنا، اعمل لايك للمنشور، واكتب توقعك بالتعليقات. بالتوفيق للجميع!',
+      'رمضان أحلى مع نينجا! 🌙💚 خمّن قيمة سلة رمضان الموجودة بالصورة وادخل السحب للفوز بقسيمة 300 ريال. كل اللي عليك: تابع حسابنا، اعمل لايك للمنشور، واكتب توقعك بالتعليقات. بالتوفيق للجميع!',
     likes: 348,
     liked: false,
     saved: false,
@@ -118,8 +118,8 @@ const INITIAL_POSTS: Post[] = [
     author: 'Ninja',
     avatar: NINJA_AVATAR,
     image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1080',
-    title: 'كل اللي تشتهيه.. يوصلك',
-    caption: 'اختياراتك المفضلة صارت أقرب لك 🍕 اطلبها من نينجا!',
+    title: 'سفرة رمضان أسهل مع نينجا',
+    caption: 'جهّز إفطارك وسحورك من نينجا خلال أجواء رمضان 🌙💚 اطلب احتياجاتك وتابع وقت التوصيل من التطبيق.',
     likes: 1280,
     liked: false,
     saved: false,
@@ -131,8 +131,8 @@ const INITIAL_POSTS: Post[] = [
     author: 'Ninja',
     avatar: NINJA_AVATAR,
     image: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=1080',
-    title: 'مزاجك له طلبه',
-    caption: 'من أول اليوم لآخره، نينجا معك في كل وقت 💚',
+    title: 'اختيارات رمضان على ذوقك',
+    caption: 'من التمر والقهوة إلى احتياجات السحور، اختر طلبك الرمضاني ويوصلك لحد بابك 💚🌙',
     likes: 946,
     liked: false,
     saved: false,
@@ -144,8 +144,8 @@ const INITIAL_POSTS: Post[] = [
     author: 'Ninja',
     avatar: NINJA_AVATAR,
     image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=1080',
-    title: 'جمعتكم أحلى مع نينجا',
-    caption: 'وش طلبكم المفضل لجمعة اليوم؟ 👀',
+    title: 'لمة رمضان تجمعنا',
+    caption: 'وش ناقص سفرة الإفطار الليلة؟ شاركنا طلبك الرمضاني المفضل من نينجا 👀🌙',
     likes: 2104,
     liked: false,
     saved: false,
@@ -155,11 +155,11 @@ const INITIAL_POSTS: Post[] = [
 ];
 
 const STORIES = [
-  { id: 's1', name: 'قصتك', avatar: NINJA_AVATAR, image: INITIAL_POSTS[0].image },
-  { id: 's2', name: 'نورة', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1080' },
-  { id: 's3', name: 'سارة', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300', image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080' },
-  { id: 's4', name: 'فاطمة', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300', image: 'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=1080' },
-  { id: 's5', name: 'أحمد', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1080' },
+  { id: 's1', name: 'قصتك', avatar: NINJA_AVATAR, image: INITIAL_POSTS[0].image, caption: 'رمضان مع نينجا 🌙💚 طلبات الإفطار والسحور توصلك بسهولة.' },
+  { id: 's2', name: 'نورة', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1080', caption: 'أجواء رمضان أحلى مع نينجا 🌙' },
+  { id: 's3', name: 'سارة', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300', image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080', caption: 'وقت الإفطار يجمعنا على الخير 💚' },
+  { id: 's4', name: 'فاطمة', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300', image: 'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=1080', caption: 'تجهيزات رمضانية توصل لبابك 🌙' },
+  { id: 's5', name: 'أحمد', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1080', caption: 'سحورك جاهز مع نينجا 💚' },
 ];
 
 function relativeTime(timestamp: number) {
@@ -259,6 +259,16 @@ export default function InstagramApp() {
   const border = isDark ? 'border-white/10' : 'border-[#efefef]';
   const soft = isDark ? 'bg-[#1c1c1e]' : 'bg-[#f5f5f5]';
 
+  useEffect(() => {
+    if (!postsHydrated) return;
+    const copy: Record<string, [string, string]> = {
+      'ninja-campaign': ['مسابقة رمضان', 'رمضان أحلى مع نينجا 🌙💚 خمّن قيمة سلة رمضان واطلب احتياجات إفطارك وسحورك من نينجا.'],
+      ninja1: ['سفرة رمضان أسهل مع نينجا', 'جهّز إفطارك وسحورك من نينجا خلال أجواء رمضان 🌙💚'],
+      ninja2: ['اختيارات رمضان على ذوقك', 'من التمر والقهوة إلى احتياجات السحور، اختر طلبك الرمضاني ويوصلك لحد بابك 💚🌙'],
+      ninja3: ['لمة رمضان تجمعنا', 'وش ناقص سفرة الإفطار الليلة؟ شاركنا طلبك الرمضاني المفضل من نينجا 👀🌙'],
+    };
+    setPosts(prev => prev.map(post => copy[post.id] ? { ...post, title: copy[post.id][0], caption: copy[post.id][1] } : post));
+  }, [postsHydrated, setPosts]);
   const displayPosts = posts.map(p => p.id === 'ninja-campaign' ? {
     ...p,
     author: ninjaProfile.name || 'Ninja',
@@ -830,7 +840,8 @@ export default function InstagramApp() {
               <X />
             </button>
           </div>
-          <div className="relative z-10 mt-auto flex h-1/2">
+          <div className="relative z-10 mt-auto px-5 pb-3 text-center text-base font-semibold drop-shadow-lg">{STORIES[activeStory].caption}</div>
+          <div className="relative z-10 flex h-1/2">
             <button
               className="w-1/3"
               onClick={() => setActiveStory(i => Math.max(0, i - 1))}
