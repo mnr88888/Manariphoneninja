@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { ChangeEvent, useRef, useState } from 'react';
 import {
   Heart,
   Trash2,
@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Share2,
   Info,
-  Play,
+  Upload,
 } from 'lucide-react';
 import { usePhotos, SimPhoto } from '../shared/photos';
 import { usePersistentState, formatArabicDate } from '../shared/utils';
@@ -17,11 +17,18 @@ import { usePersistentState, formatArabicDate } from '../shared/utils';
 type View = 'gallery' | 'albums' | 'favorites' | 'recently-deleted' | 'viewer';
 
 export default function PhotosApp() {
-  const { photos, toggleFavorite, softDelete, restore, permanentDelete } =
+  const { photos, addPhoto, toggleFavorite, softDelete, restore, permanentDelete } =
     usePhotos();
   const [view, setView] = useState<View>('gallery');
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'));
+    await Promise.all(files.map((file) => addPhoto(file, file.name, 'الصور المرفوعة')));
+    event.target.value = '';
+  };
 
   const active = photos.filter((p) => !p.deleted);
   const deleted = photos.filter((p) => p.deleted);
@@ -70,7 +77,12 @@ export default function PhotosApp() {
           </button>
           <div
             className="h-[400px] w-[85%] rounded-[18px]"
-            style={{ backgroundImage: viewerPhoto.gradient.startsWith('data:image/') ? `url("${viewerPhoto.gradient}")` : viewerPhoto.gradient }}
+            style={{
+              backgroundImage: photoBackground(viewerPhoto),
+              backgroundSize: viewerPhoto.imageUrl ? 'contain' : 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
           />
           <button
             onClick={() =>
@@ -135,6 +147,15 @@ export default function PhotosApp() {
           onBack={null}
           onTab={setView}
           current="albums"
+          onUpload={() => uploadInputRef.current?.click()}
+        />
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleUpload}
+          className="hidden"
         />
         <div className="grid flex-1 grid-cols-2 gap-4 overflow-y-auto p-4">
           {albums.map((album) => {
@@ -151,7 +172,12 @@ export default function PhotosApp() {
               >
                 <div
                   className="h-32 w-full rounded-[14px]"
-                  style={{ backgroundImage: cover?.gradient?.startsWith('data:image/') ? `url("${cover.gradient}")` : cover?.gradient }}
+                  style={{
+                    backgroundImage: cover ? photoBackground(cover) : undefined,
+                    backgroundSize: cover?.imageUrl ? 'cover' : undefined,
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                  }}
                 />
                 <p className="mt-1 text-sm font-medium text-black">{album}</p>
                 <p className="text-xs text-black/40">{count} صورة</p>
@@ -188,6 +214,16 @@ export default function PhotosApp() {
         }
         onTab={setView}
         current={view}
+        onUpload={() => uploadInputRef.current?.click()}
+      />
+
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleUpload}
+        className="hidden"
       />
 
       <div className="grid flex-1 grid-cols-3 gap-0.5 overflow-y-auto px-0.5 pb-2">
@@ -205,7 +241,12 @@ export default function PhotosApp() {
               key={p.id}
               onClick={() => setViewerIndex(i)}
               className="relative aspect-square"
-              style={{ backgroundImage: p.gradient.startsWith('data:image/') ? `url("${p.gradient}")` : p.gradient }}
+              style={{
+                backgroundImage: photoBackground(p),
+                backgroundSize: p.imageUrl ? 'cover' : undefined,
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }}
             >
               {p.favorite && (
                 <Heart
@@ -240,11 +281,13 @@ function AlbumHeader({
   onBack,
   onTab,
   current,
+  onUpload,
 }: {
   title: string;
   onBack: (() => void) | null;
   onTab: (v: View) => void;
   current: View;
+  onUpload: () => void;
 }) {
   return (
     <>
@@ -257,7 +300,9 @@ function AlbumHeader({
           <div className="w-12" />
         )}
         <h2 className="text-[17px] font-semibold text-black">{title}</h2>
-        <div className="w-12" />
+        <button onClick={onUpload} className="flex w-12 items-center justify-end text-[#007AFF]" aria-label="رفع الصور">
+          <Upload className="h-5 w-5" />
+        </button>
       </div>
       <div className="flex gap-4 border-b border-black/10 px-6 pb-2 text-sm">
         {(
@@ -283,4 +328,10 @@ function AlbumHeader({
       </div>
     </>
   );
+}
+
+function photoBackground(photo: SimPhoto): string {
+  if (photo.imageUrl) return `url("${photo.imageUrl}")`;
+  if (photo.gradient.startsWith('data:image/')) return `url("${photo.gradient}")`;
+  return photo.gradient;
 }
