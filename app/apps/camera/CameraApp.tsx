@@ -94,7 +94,7 @@ export default function CameraApp() {
     setTimeout(() => {
       setCapturing(false);
       setLastCapture(image);
-      addPhoto(image, 'لقطة حقيقية بالكاميرا');
+      addPhoto(image, 'لقطة حقيقية بالكاميرا', 'صور الكاميرا المؤقتة', false);
     }, 120);
   };
 

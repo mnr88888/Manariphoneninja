@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Heart,
   Trash2,
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Share2,
   Info,
-  Upload,
 } from 'lucide-react';
 import { usePhotos, SimPhoto } from '../shared/photos';
 import { usePersistentState, formatArabicDate } from '../shared/utils';
@@ -22,14 +21,6 @@ export default function PhotosApp() {
   const [view, setView] = useState<View>('gallery');
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null);
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'));
-    await Promise.all(files.map((file) => addPhoto(file, file.name, 'الصور المرفوعة')));
-    event.target.value = '';
-  };
-
   const active = photos.filter((p) => !p.deleted);
   const deleted = photos.filter((p) => p.deleted);
   const favorites = active.filter((p) => p.favorite);
@@ -141,15 +132,6 @@ export default function PhotosApp() {
           onBack={null}
           onTab={setView}
           current="albums"
-          onUpload={() => uploadInputRef.current?.click()}
-        />
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleUpload}
-          className="hidden"
         />
         <div className="grid flex-1 grid-cols-2 gap-4 overflow-y-auto p-4">
           {albums.map((album) => {
@@ -202,16 +184,7 @@ export default function PhotosApp() {
         }
         onTab={setView}
         current={view}
-        onUpload={() => uploadInputRef.current?.click()}
-      />
-
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleUpload}
-        className="hidden"
+        
       />
 
       <div className="grid flex-1 grid-cols-3 gap-0.5 overflow-y-auto px-0.5 pb-2">
@@ -267,13 +240,11 @@ function AlbumHeader({
   onBack,
   onTab,
   current,
-  onUpload,
 }: {
   title: string;
   onBack: (() => void) | null;
   onTab: (v: View) => void;
   current: View;
-  onUpload: () => void;
 }) {
   return (
     <>
@@ -286,9 +257,7 @@ function AlbumHeader({
           <div className="w-12" />
         )}
         <h2 className="text-[17px] font-semibold text-black">{title}</h2>
-        <button onClick={onUpload} className="flex w-12 items-center justify-end text-[#007AFF]" aria-label="رفع الصور">
-          <Upload className="h-5 w-5" />
-        </button>
+        <div className="w-12" />
       </div>
       <div className="flex gap-4 border-b border-black/10 px-6 pb-2 text-sm">
         {(

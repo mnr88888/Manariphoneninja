@@ -37,6 +37,13 @@ const LABELS = [
 const PHOTO_DB_NAME = 'iphone-simulator-photos';
 const PHOTO_DB_VERSION = 1;
 const PHOTO_STORE_NAME = 'original-files';
+let temporaryCameraPhotos: SimPhoto[] = [];
+const temporaryPhotoListeners = new Set<(photos: SimPhoto[]) => void>();
+
+function publishTemporaryCameraPhotos(photos: SimPhoto[]) {
+  temporaryCameraPhotos = photos;
+  temporaryPhotoListeners.forEach((listener) => listener(photos));
+}
 
 function photoId() {
   return 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -127,9 +134,18 @@ export function usePhotos() {
       timestamp: Date.now() - (i + 1) * 86400000,
     }))
   );
+  const [temporaryPhotos, setTemporaryPhotos] = useState<SimPhoto[]>(temporaryCameraPhotos);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const imageUrlsRef = useRef<Record<string, string>>({});
   imageUrlsRef.current = imageUrls;
+
+  useEffect(() => {
+    const listener = (photos: SimPhoto[]) => setTemporaryPhotos(photos);
+    temporaryPhotoListeners.add(listener);
+    return () => {
+      temporaryPhotoListeners.delete(listener);
+    };
+  }, []);
 
   // Ask the browser not to evict the album when the simulator is closed.
   // The original files live in IndexedDB and the album metadata in localStorage.
@@ -164,23 +180,36 @@ export function usePhotos() {
   }, [storedPhotos]);
 
   const photos = useMemo(
-    () => storedPhotos.map((photo) => ({ ...photo, imageUrl: photo.imageKey ? imageUrls[photo.id] : undefined })),
-    [storedPhotos, imageUrls]
+    () => [...temporaryPhotos, ...storedPhotos].map((photo) => ({ ...photo, imageUrl: photo.imageKey ? imageUrls[photo.id] : photo.imageUrl })),
+    [temporaryPhotos, storedPhotos, imageUrls]
   );
 
-  const addPhoto = async (source: Blob | string, label: string, album = 'الألبوم الرئيسي') => {
+  const addPhoto = async (
+    source: Blob | string,
+    label: string,
+    album = 'الألبوم الرئيسي',
+    persist = true,
+  ) => {
     const id = photoId();
     const imageKey = id;
+    const photo: SimPhoto = {
+      id,
+      gradient: 'linear-gradient(135deg, #d1d5db 0%, #f3f4f6 100%)',
+      label,
+      album,
+      favorite: false,
+      timestamp: Date.now(),
+    };
+    if (!persist) {
+      photo.imageUrl = typeof source === 'string' ? source : await blobToDataUrl(source);
+      publishTemporaryCameraPhotos([photo, ...temporaryCameraPhotos]);
+      return;
+    }
     const saved = await saveOriginalImage(imageKey, source);
     setPhotos((prev) => [
       {
-        id,
-        gradient: 'linear-gradient(135deg, #d1d5db 0%, #f3f4f6 100%)',
+        ...photo,
         ...(saved ? { imageKey } : { gradient: typeof source === 'string' ? source : GRADIENTS[0] }),
-        label,
-        album,
-        favorite: false,
-        timestamp: Date.now(),
       },
       ...prev,
     ]);
