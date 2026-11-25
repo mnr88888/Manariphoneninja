@@ -238,9 +238,9 @@ export default function SettingsApp() {
                     key={app.id}
                     icon={
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={app.imageIcon} alt="" className="h-full w-full object-cover" />
+                      <img src={app.imageIcon} alt="" className="h-full w-full object-contain" />
                     }
-                    iconBg="bg-black/5 overflow-hidden"
+                    iconBg="bg-transparent overflow-hidden"
                     title={app.name}
                     accessory={
                       <Toggle
@@ -450,7 +450,7 @@ export default function SettingsApp() {
                     <div key={u.slice(-30)} className="relative">
                       <button onClick={() => setWallpaper(previewTarget, u)} className="block w-full overflow-hidden rounded-lg">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={u} alt="خلفية مرفوعة" className="h-20 w-full object-cover" />
+                        <img src={u} alt="خلفية مرفوعة" className="h-20 w-full object-contain" />
                       </button>
                       <button
                         onClick={() => removeUploadedWallpaper(u)}
