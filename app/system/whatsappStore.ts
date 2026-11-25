@@ -267,7 +267,6 @@ let activeConversation: string | null = null;
 
 export function setActiveWhatsAppConversation(chatId: string | null): void {
   activeConversation = chatId;
-  if (chatId) markWhatsAppChatRead(chatId);
 }
 
 /** Idempotent migration shared by app mount and engine, preserving sent messages. */
@@ -460,7 +459,8 @@ function deliverIntoChat(targetChatId?: string, replyTo?: string): IncomingWhats
     const message: WAMessage = { id: `sim-${makeId()}`, text, sender: 'them', senderId, senderName, timestamp: Date.now(), type: 'text' };
     const next = chats.map((item) => item.id === chat.id ? {
       ...item, messages: [...item.messages, message],
-      unread: activeConversation === chat.id ? 0 : item.unread + 1,
+      // Opening a chat does not mark it read: the unread badge intentionally remains visible.
+      unread: item.unread + 1,
       ...(nextIncomingIndex !== undefined ? { nextIncomingIndex } : {}),
     } : item);
     // Commit the actual message and navigation data before broadcasting anything.

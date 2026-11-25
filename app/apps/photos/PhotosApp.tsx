@@ -75,15 +75,9 @@ export default function PhotosApp() {
           >
             <ChevronLeft className="h-8 w-8" />
           </button>
-          <div
-            className="h-[400px] w-[85%] rounded-[18px]"
-            style={{
-              backgroundImage: photoBackground(viewerPhoto),
-              backgroundSize: viewerPhoto.imageUrl ? 'contain' : 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
+          <div className="flex h-[400px] w-[85%] items-center justify-center overflow-hidden rounded-[18px]">
+            <PhotoVisual photo={viewerPhoto} contain />
+          </div>
           <button
             onClick={() =>
               setViewerIndex((i) =>
@@ -170,15 +164,9 @@ export default function PhotosApp() {
                 }}
                 className="text-right"
               >
-                <div
-                  className="h-32 w-full rounded-[14px]"
-                  style={{
-                    backgroundImage: cover ? photoBackground(cover) : undefined,
-                    backgroundSize: cover?.imageUrl ? 'cover' : undefined,
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
-                  }}
-                />
+                <div className="h-32 w-full overflow-hidden rounded-[14px]">
+                  {cover && <PhotoVisual photo={cover} />}
+                </div>
                 <p className="mt-1 text-sm font-medium text-black">{album}</p>
                 <p className="text-xs text-black/40">{count} صورة</p>
               </button>
@@ -240,14 +228,12 @@ export default function PhotosApp() {
             <button
               key={p.id}
               onClick={() => setViewerIndex(i)}
-              className="relative aspect-square"
+              className="relative aspect-square overflow-hidden"
               style={{
-                backgroundImage: photoBackground(p),
-                backgroundSize: p.imageUrl ? 'cover' : undefined,
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
+                background: p.imageUrl || p.gradient,
               }}
             >
+              <PhotoVisual photo={p} />
               {p.favorite && (
                 <Heart
                   className="absolute bottom-1 right-1 h-4 w-4 text-white"
@@ -334,4 +320,19 @@ function photoBackground(photo: SimPhoto): string {
   if (photo.imageUrl) return `url("${photo.imageUrl}")`;
   if (photo.gradient.startsWith('data:image/')) return `url("${photo.gradient}")`;
   return photo.gradient;
+}
+
+function PhotoVisual({ photo, contain = false }: { photo: SimPhoto; contain?: boolean }) {
+  if (photo.imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photo.imageUrl}
+        alt={photo.label}
+        className={`h-full w-full ${contain ? 'object-contain' : 'object-cover'}`}
+        decoding="async"
+      />
+    );
+  }
+  return <div className="h-full w-full" style={{ background: photo.gradient }} />;
 }

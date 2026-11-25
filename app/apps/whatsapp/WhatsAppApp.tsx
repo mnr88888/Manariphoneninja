@@ -41,7 +41,6 @@ import {
   PROJECT_MEMBERS,
   ensureWhatsAppStore,
   updateWhatsAppChats,
-  markWhatsAppChatRead,
   setActiveWhatsAppConversation,
   sendWhatsAppMessage,
   deliverWhatsAppReply,
@@ -214,9 +213,8 @@ export default function WhatsAppApp() {
   // Includes newly incoming messages and cross-tab writes while the chat is open.
   useEffect(() => {
     if (!activeChatId || activeApp !== 'whatsapp' || screenMode !== 'app' || locked) return;
-    if (activeChat?.unread) markWhatsAppChatRead(activeChatId);
     notifications.filter((n) => n.appId === 'whatsapp' && n.targetId === activeChatId && !n.read).forEach(markNotificationRead);
-  }, [activeChatId, activeApp, screenMode, locked, activeChat?.unread, notifications, markNotificationRead]);
+  }, [activeChatId, activeApp, screenMode, locked, notifications, markNotificationRead]);
 
   const getContact = (id: string): WAContact => contacts.find((c) => c.id === id)
     ?? { id, name: chats.find((chat) => chat.contactId === id)?.name || 'جهة اتصال محفوظة', color: '#607D8B' };
@@ -531,7 +529,6 @@ export default function WhatsAppApp() {
                 setShowContactInfo(false);
                 setDraft('');
                 if (activeApp === 'whatsapp' && screenMode === 'app' && !locked) setActiveWhatsAppConversation(chat.id);
-                markWhatsAppChatRead(chat.id);
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-right transition active:bg-white/5"
             >
