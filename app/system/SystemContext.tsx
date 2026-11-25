@@ -401,7 +401,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     ensureInboxStores();
     const storedNotifs = loadJSON<SystemNotification[]>('ios-notifications', []);
     // Remove the previous hard-coded cards: they did not represent delivered messages.
-    setNotifications(Array.isArray(storedNotifs) ? storedNotifs.filter((n) => !/^s[1-5]$/.test(n.id) && (n.appId !== 'x' || n.targetId === 'x-activity')).map((n) =>
+    setNotifications(Array.isArray(storedNotifs) ? storedNotifs.filter((n) => !/^s[1-5]$/.test(n.id) && (n.appId !== 'x' || (n.targetId === 'x-activity' && /Ninja|نينجا/i.test(n.body)))).map((n) =>
       n.id.startsWith('ninja-eid-') ? { ...n, id: n.id.replace('ninja-eid-', 'ninja-ramadan-'), targetId: n.id.replace('ninja-eid-', 'ninja-ramadan-') } : n
     ) : []);
 

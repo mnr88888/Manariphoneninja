@@ -15,7 +15,7 @@ export interface Email {
 export const SAMPLE_EMAILS: Email[] = [
   {
     id: 'e1',
-    from: 'أحمد العتيبي',
+    from: 'زهراء علي',
     subject: 'تقرير المشروع الشهري',
     body: 'السلام عليكم،\n\nمرفق تقرير المشروع الشهري لشهر أكتوبر. الرجاء مراجعته وإرسال ملاحظاتكم قبل نهاية الأسبوع.\n\nمع التحية،\nأحمد',
     timestamp: Date.now() - 3600000,
@@ -25,7 +25,7 @@ export const SAMPLE_EMAILS: Email[] = [
   },
   {
     id: 'e2',
-    from: 'سارة الحربي',
+    from: 'زهراء زهير',
     subject: 'دعوة اجتماع الفريق',
     body: 'مرحباً،\n\nنود دعوتكم لاجتماع الفريق يوم الأحد القادم الساعة العاشرة صباحاً في قاعة الاجتماعات.\n\nشكراً لكم',
     timestamp: Date.now() - 7200000,
@@ -45,7 +45,7 @@ export const SAMPLE_EMAILS: Email[] = [
   },
   {
     id: 'e4',
-    from: 'أنا',
+    from: 'فرقان',
     subject: 'رد: تقرير المشروع',
     body: 'شكراً أحمد، سأراجع التقرير اليوم.',
     timestamp: Date.now() - 26 * 3600000,
@@ -155,4 +155,3 @@ export const SMS_CONVERSATIONS: SMSConversation[] = [
     ],
   },
 ];
-
