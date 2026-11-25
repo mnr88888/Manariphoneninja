@@ -56,7 +56,7 @@ export default function AppShell({
   transparentHeader = false,
 }: AppShellProps) {
   return (
-    <div className={`absolute inset-0 flex flex-col ${bgClassName}`}>
+    <div className={`system-app-shell absolute inset-0 flex min-h-0 flex-col ${bgClassName}`}>
       {/* Status bar spacer */}
       <div className="h-12 shrink-0" />
 
@@ -64,7 +64,7 @@ export default function AppShell({
       {(title || onBack || rightAction || leftAction) && (
         <div
           className={`relative z-10 flex h-11 shrink-0 items-center justify-between px-4 ${
-            transparentHeader ? '' : 'bg-transparent'
+            transparentHeader ? '' : 'liquid-glass-chrome'
           }`}
         >
           {/* Right side (RTL: visually right = start) */}
@@ -109,7 +109,7 @@ export default function AppShell({
       {headerExtra}
 
       {/* Content area */}
-      <div className="relative flex-1 overflow-hidden">{children}</div>
+      <div className="relative min-h-0 flex-1 overflow-hidden">{children}</div>
 
       {/* Tab bar */}
       {tabBar && <div className="shrink-0">{tabBar}</div>}
@@ -139,14 +139,15 @@ export function TabBar({
   tint?: string;
 }) {
   return (
-    <div className="flex items-center justify-around border-t border-black/10 bg-white/95 px-2 pb-2 pt-2 backdrop-blur-xl">
+    <div className="liquid-glass-chrome mx-2 mb-1 flex items-center justify-around rounded-[28px] px-2 pb-2 pt-2">
       {tabs.map((tab) => {
         const active = tab.id === activeTab;
         return (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className="flex flex-1 flex-col items-center gap-0.5 transition active:scale-95"
+            aria-current={active ? 'page' : undefined}
+            className={`flex flex-1 flex-col items-center gap-0.5 py-1 transition active:scale-95 ${active ? 'system-tab-active' : ''}`}
           >
             {tab.icon && (
               <span style={{ color: active ? tint : '#8E8E93' }}>
@@ -180,7 +181,7 @@ export function SearchBar({
 }) {
   return (
     <div className="px-4 py-2">
-      <div className="flex items-center gap-2 rounded-[10px] bg-black/5 px-3 py-2">
+      <div className="liquid-glass-chrome flex items-center gap-2 rounded-full px-3 py-2">
         <svg
           viewBox="0 0 24 24"
           className="h-4 w-4 shrink-0 text-black/40"
@@ -307,7 +308,7 @@ export function Section({
           {header}
         </div>
       )}
-      <div className="overflow-hidden rounded-[12px] mx-4">{children}</div>
+      <div className="system-section mx-4 overflow-hidden rounded-[20px]">{children}</div>
       {footer && (
         <div className="px-5 pt-2 text-[13px] text-black/50">{footer}</div>
       )}
