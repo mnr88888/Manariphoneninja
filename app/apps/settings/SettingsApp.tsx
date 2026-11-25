@@ -253,12 +253,19 @@ export default function SettingsApp() {
               ))}
           </Section>
 
+          <Section header="استلام رسالة الآن" footer="اختاري التطبيق: تُضاف رسالة حقيقية إلى صندوقه أولًا، ثم يظهر إشعارها.">
+            {APPS.filter((app) => ['whatsapp', 'mail', 'messages', 'instagram', 'x', 'ninja'].includes(app.id)).map((app, index) => (
+              <ListRow key={app.id} title={`رسالة من ${app.name}`} showChevron onClick={() => window.dispatchEvent(new CustomEvent('simulator-deliver-message', { detail: { appId: app.id } }))} lastInSection={index === 5} />
+            ))}
+          </Section>
+
           <Section header="الإشعارات الحالية">
             <ListRow title={notifications.length ? `${notifications.length} إشعار` : 'لا توجد إشعارات'} accessory={notifications.length > 0 ? <button onClick={clearNotifications} className="text-[13px] text-red-500">مسح الكل</button> : undefined} lastInSection />
           </Section>
 
-          <Section header="رسائل واتساب التلقائية" footer="استلام رسائل واتساب تجريبية من جهات اتصال محاكية بشكل دوري.">
-            <ListRow title="رسائل واردة تلقائية" accessory={<Toggle on={settings.whatsappAutoMessages !== false} onChange={(v) => updateSettings({ whatsappAutoMessages: v })} />} lastInSection />
+          <Section header="الرسائل التلقائية في المحاكي" footer="تصل رسالة جديدة كل ١٠ ثوانٍ بالتناوب من واتساب والبريد والرسائل وإنستقرام وX ونينجا، وتُحفظ داخل التطبيق نفسه.">
+            <ListRow title="الإشعارات المتنوعة تلقائيًا" accessory={<Toggle on={settings.autoNotifications !== false} onChange={(v) => updateSettings({ autoNotifications: v })} />} />
+            <ListRow title="تضمين رسائل واتساب" accessory={<Toggle on={settings.whatsappAutoMessages !== false} onChange={(v) => updateSettings({ whatsappAutoMessages: v })} />} lastInSection />
           </Section>
         </div>
       </div>
