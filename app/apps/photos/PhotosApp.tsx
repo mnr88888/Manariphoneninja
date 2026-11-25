@@ -323,11 +323,12 @@ function photoBackground(photo: SimPhoto): string {
 }
 
 function PhotoVisual({ photo, contain = false }: { photo: SimPhoto; contain?: boolean }) {
-  if (photo.imageUrl) {
+  const source = photo.imageUrl || (photo.gradient.startsWith('data:image/') ? photo.gradient : null);
+  if (source) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photo.imageUrl}
+        src={source}
         alt={photo.label}
         className={`h-full w-full ${contain ? 'object-contain' : 'object-cover'}`}
         decoding="async"
