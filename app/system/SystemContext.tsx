@@ -299,6 +299,9 @@ export interface NinjaCampaign {
   updatedAt: number;
 }
 
+/** Official Ninja campaign hashtag (locked) */
+export const NINJA_HASHTAG = '#رمضان_مع_نينجا_احلى';
+
 const DEFAULT_NINJA_PROFILE: NinjaProfile = {
   name: 'Ninja',
   username: 'ninja',
@@ -313,7 +316,7 @@ const DEFAULT_CAMPAIGN: NinjaCampaign = {
   image: '',
   title: '',
   description: '',
-  hashtag: '#العيد_يجمعنا_ونينجا_يجمعنا',
+  hashtag: NINJA_HASHTAG,
   updatedAt: 0,
 };
 
@@ -610,7 +613,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const storedCampaign = loadJSON<NinjaCampaign | null>('ninja-campaign', null);
-    if (storedCampaign) setNinjaCampaign({ ...DEFAULT_CAMPAIGN, ...storedCampaign });
+    // The campaign hashtag is locked: always use the current one (overrides older saved values)
+    if (storedCampaign) setNinjaCampaign({ ...DEFAULT_CAMPAIGN, ...storedCampaign, hashtag: NINJA_HASHTAG });
     const storedProfile = loadJSON<NinjaProfile | null>('ninja-profile', null);
     if (storedProfile) setNinjaProfile({ ...DEFAULT_NINJA_PROFILE, ...storedProfile });
   }, []);

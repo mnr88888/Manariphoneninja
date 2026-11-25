@@ -19,10 +19,10 @@ import { useSystem, type NewNotification } from './SystemContext';
 import { deliverWhatsAppMessage } from './whatsappStore';
 
 /** First message arrives this long after the phone starts */
-const FIRST_DELAY = 60 * 1000;
-// Spacing between later messages (2–6 min randomized)
-const MIN_GAP = 2 * 60000;
-const MAX_GAP = 6 * 60000;
+const FIRST_DELAY = 10 * 1000;
+// Spacing between later messages
+const MIN_GAP = 10 * 1000;
+const MAX_GAP = 10 * 1000;
 
 type AddNotification = (n: NewNotification) => void;
 
