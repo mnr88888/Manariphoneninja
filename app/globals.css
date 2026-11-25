@@ -15,8 +15,9 @@ body {
   height: 100%;
   overflow: hidden;
   background: #000;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
-    system-ui, sans-serif;
+  font-family: var(--font-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 input,
@@ -259,4 +260,88 @@ html {
 .banner-out {
   transform-origin: top center;
   animation: banner-out 0.3s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+
+/* Local Arabic typography and mobile viewport containment. */
+button, input, textarea, select { font-family: inherit; }
+input:not([type='range']), textarea, select { font-size: max(16px, 1em); }
+.phone-stage {
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding: 12px;
+  overflow: hidden;
+}
+.phone-screen { isolation: isolate; container-type: size; }
+.phone-screen .overflow-y-auto {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  .phone-stage {
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+      env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: #000;
+  }
+}
+
+/* One shared glass material: translucent tint, refracted light and edge sheen.
+   No animated filters: scrolling and gestures stay on the compositor. */
+.liquid-glass, .liquid-glass-dark, .liquid-glass-chrome {
+  --glass-tint: rgba(255,255,255,.62);
+  --glass-edge: rgba(255,255,255,.7);
+  background: linear-gradient(145deg, rgba(255,255,255,.32), transparent 48%, rgba(255,255,255,.1)), var(--glass-tint);
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 8px 28px rgba(15,23,42,.12), inset 0 1px 1px rgba(255,255,255,.65), inset 0 -1px 1px rgba(255,255,255,.12);
+  -webkit-backdrop-filter: blur(24px) saturate(1.65);
+  backdrop-filter: blur(24px) saturate(1.65);
+}
+.liquid-glass-dark {
+  --glass-tint: rgba(28,30,40,.46);
+  --glass-edge: rgba(255,255,255,.24);
+  color: white;
+  box-shadow: 0 8px 28px rgba(0,0,0,.2), inset 0 1px 1px rgba(255,255,255,.32);
+}
+.liquid-glass-chrome { --glass-tint: rgba(248,250,255,.78); box-shadow: inset 0 1px 1px rgba(255,255,255,.85); }
+.liquid-glass[data-active='true'] { background: #fff; color: #111827; }
+.glass-overlay {
+  background: rgba(238,242,250,.28);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  backdrop-filter: blur(32px) saturate(1.4);
+}
+.glass-overlay-dark { background: rgba(8,12,24,.48); }
+.system-app-shell { background-image: radial-gradient(ellipse at top right, rgba(199,220,255,.17), transparent 60%); }
+.system-section { border: 1px solid rgba(255,255,255,.72); box-shadow: 0 4px 16px rgba(30,50,80,.035); }
+.system-section > * { background-color: rgba(255,255,255,.72); }
+.system-tab-active { background: rgba(120,140,180,.12); border-radius: 24px; padding: 5px 2px; }
+.home-app-grid { grid-auto-rows: minmax(78px, 1fr); }
+.home-icon-art { border: 1px solid rgba(255,255,255,.28); }
+.lock-clock {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', var(--font-arabic), sans-serif;
+  font-size: clamp(76px, 23cqw, 100px);
+  direction: ltr;
+  white-space: nowrap;
+  text-shadow: 0 2px 18px rgba(255,255,255,.45);
+}
+@container (max-height: 760px) {
+  .home-app-grid { row-gap: 8px; grid-auto-rows: minmax(72px, 1fr); }
+  .lock-top { margin-top: 48px; }
+  .lock-date-clock { margin-top: 12px; }
+  .lock-shortcuts { padding-bottom: 18px; }
+  .lock-shortcuts-row { margin-bottom: 24px; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .liquid-glass, .liquid-glass-chrome { background: rgba(245,247,252,.96); }
+  .liquid-glass-dark { background: rgba(30,34,45,.96); }
+  .glass-overlay { background: rgba(235,239,247,.96); }
+  .glass-overlay-dark { background: rgba(14,18,28,.96); }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .liquid-glass, .liquid-glass-chrome, .glass-overlay { background: #f5f7fc; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .liquid-glass-dark, .glass-overlay-dark { background: #222735; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .animate-bounce, .animate-pulse { animation: none !important; }
 }

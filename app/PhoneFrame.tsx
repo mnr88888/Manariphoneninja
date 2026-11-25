@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OSProvider, useOS } from './OSContext';
 import { SystemProvider, useSystem } from './system/SystemContext';
 import StatusBar from './components/StatusBar';
@@ -35,7 +35,9 @@ function PhoneShell() {
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden bg-black"
+      data-phone-screen
+      data-appearance={settings.darkMode ? 'dark' : 'light'}
+      className="phone-screen relative h-full w-full overflow-hidden bg-black"
       style={{
         filter: `brightness(${settings.brightness}%)`,
         transition: 'filter 0.2s',
@@ -117,27 +119,78 @@ function PhoneShell() {
 }
 
 export default function PhoneFrame() {
+  const stage = useRef<HTMLDivElement>(null);
+  const [frame, setFrame] = useState({ width: 390, height: 844, bezel: 10, scale: 1, ready: false });
+
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    let request = 0;
+    const measure = () => {
+      cancelAnimationFrame(request);
+      request = requestAnimationFrame(() => {
+        const viewport = window.visualViewport;
+        element.style.height = `${viewport?.height ?? window.innerHeight}px`;
+        element.style.width = `${viewport?.width ?? window.innerWidth}px`;
+        element.style.top = `${viewport?.offsetTop ?? 0}px`;
+        element.style.left = `${viewport?.offsetLeft ?? 0}px`;
+        const style = getComputedStyle(element);
+        const width = Math.max(1, element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+        const height = Math.max(1, element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+        const compact = window.innerWidth <= 600 || window.matchMedia('(pointer: coarse) and (max-height: 600px)').matches;
+        const bezel = compact ? 0 : 10;
+        const logicalWidth = compact ? Math.max(360, Math.min(430, width)) : 390;
+        const widthScale = Math.min(1, width / logicalWidth);
+        const logicalHeight = compact ? Math.max(720, Math.min(956, height / widthScale)) : 844;
+        const scale = Math.min(1, width / (logicalWidth + bezel * 2), height / (logicalHeight + bezel * 2));
+        setFrame({ width: logicalWidth, height: logicalHeight, bezel, scale, ready: true });
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
+    return () => {
+      cancelAnimationFrame(request);
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
+    };
+  }, []);
+
+  const outerWidth = frame.width + frame.bezel * 2;
+  const outerHeight = frame.height + frame.bezel * 2;
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-neutral-900">
-      {/* Phone bezel */}
+    <div ref={stage} className="phone-stage fixed flex items-center justify-center bg-neutral-900">
       <div
-        className="relative flex h-full max-h-[880px] w-full max-w-[420px] flex-col overflow-hidden rounded-[52px] border-[10px] border-neutral-800 bg-black shadow-2xl"
+        className="relative shrink-0"
         style={{
-          boxShadow:
-            '0 0 0 2px #1a1a1a, 0 20px 60px rgba(0,0,0,0.6), inset 0 0 4px rgba(255,255,255,0.05)',
+          width: outerWidth * frame.scale,
+          height: outerHeight * frame.scale,
+          visibility: frame.ready ? 'visible' : 'hidden',
         }}
       >
-        {/* Dynamic Island / Notch */}
-        <div className="absolute left-1/2 top-2 z-[60] flex h-8 w-[120px] -translate-x-1/2 items-center justify-center rounded-full bg-black">
-          <div className="absolute right-3 h-3 w-3 rounded-full bg-neutral-700" />
-          <div className="absolute left-3 h-2 w-2 rounded-full bg-neutral-800" />
+        <div
+          className="absolute left-0 top-0 overflow-hidden border-solid border-neutral-800 bg-black"
+          style={{
+            width: outerWidth,
+            height: outerHeight,
+            borderWidth: frame.bezel,
+            borderRadius: frame.bezel ? 52 : 0,
+            transform: `scale(${frame.scale})`,
+            transformOrigin: 'top left',
+            boxShadow: frame.bezel ? '0 0 0 2px #1a1a1a, 0 20px 60px rgba(0,0,0,0.6)' : 'none',
+          }}
+        >
+          <SystemProvider>
+            <OSProvider>
+              <PhoneShell />
+            </OSProvider>
+          </SystemProvider>
         </div>
-
-        <SystemProvider>
-          <OSProvider>
-            <PhoneShell />
-          </OSProvider>
-        </SystemProvider>
       </div>
     </div>
   );
