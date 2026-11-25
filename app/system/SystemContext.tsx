@@ -86,6 +86,17 @@ export interface WallpaperState {
   positionY: number; // 0-100 %
 }
 
+/** Icons per home-screen page: 4 columns x 5 rows, so every app fits on page 1 */
+export const APPS_PER_PAGE = 20;
+
+/** Payload for addNotification. `id` lets a caller re-deliver a known notification
+ *  (e.g. a Ninja inbox message); `badge` sets the app's badge to an absolute count
+ *  instead of the default +1. */
+export type NewNotification = Omit<SystemNotification, 'id' | 'timestamp'> & {
+  id?: string;
+  badge?: number;
+};
+
 /* ============================================================
  * Sample data
  * ============================================================ */
@@ -215,7 +226,10 @@ interface SystemContextValue {
 
   // Notifications
   notifications: SystemNotification[];
-  addNotification: (n: Omit<SystemNotification, 'id' | 'timestamp'>) => void;
+  addNotification: (n: NewNotification) => void;
+  /** Latest notification to show as a top banner (null when none) */
+  banner: SystemNotification | null;
+  dismissBanner: () => void;
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
   markNotificationRead: (n: SystemNotification) => void;
@@ -304,6 +318,51 @@ const DEFAULT_CAMPAIGN: NinjaCampaign = {
 };
 
 /* ============================================================
+ * Notification feedback (sound + haptics)
+ * ============================================================ */
+
+/** Short three-note chime, in the spirit of the iPhone "Tri-tone" alert */
+function playNotificationChime(volume: number) {
+  try {
+    const AC =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const master = ctx.createGain();
+    master.gain.value = 0.08 * (volume / 100);
+    master.connect(ctx.destination);
+    const notes = [1318.5, 1568, 2093]; // E6, G6, C7
+    notes.forEach((freq, i) => {
+      const t0 = ctx.currentTime + i * 0.11;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(1, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+      osc.connect(gain).connect(master);
+      osc.start(t0);
+      osc.stop(t0 + 0.34);
+    });
+    setTimeout(() => void ctx.close(), 900);
+  } catch {
+    // audio unavailable
+  }
+}
+
+function vibrateNotification() {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([18, 45, 18]);
+    }
+  } catch {
+    // vibration unavailable
+  }
+}
+
+/* ============================================================
  * Provider
  * ============================================================ */
 
@@ -332,17 +391,24 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
     const storedNotifs = loadJSON<SystemNotification[] | null>('ios-notifications', null);
     if (storedNotifs && storedNotifs.length > 0) {
-      setNotifications(storedNotifs);
+      // Migrate legacy Ninja ids (ninja-eid-N) so they match the Ninja inbox ids
+      setNotifications(
+        storedNotifs.map((n) =>
+          n.id.startsWith('ninja-eid-')
+            ? { ...n, id: n.id.replace('ninja-eid-', 'ninja-ramadan-'), targetId: n.id.replace('ninja-eid-', 'ninja-ramadan-') }
+            : n
+        )
+      );
     } else {
       // Seed on first run. Ninja notifications use stable ids shared with the
       // Ninja inbox (ninja-eid-N) so both views stay synchronized and no
       // duplicates appear after a refresh.
       const ninjaSeeds: SystemNotification[] = EID_NOTIFICATIONS.map((n, i) => ({
-        id: `ninja-eid-${i}`,
+        id: `ninja-ramadan-${i}`,
         appId: 'ninja',
         title: n.title,
         body: n.body,
-        targetId: `ninja-eid-${i}`,
+        targetId: `ninja-ramadan-${i}`,
         timestamp: Date.now() - (i + 1) * 30 * 60000,
       }));
       setNotifications([
@@ -369,7 +435,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (storedRemoved.length > 0) setRemovedApps(storedRemoved);
 
     const storedPages = loadJSON<string[][] | null>('ios-home-pages', null);
-    // Always repaginate on load: page 1 fills first (16 apps), overflow goes
+    // Always repaginate on load: page 1 fills first (APPS_PER_PAGE apps), overflow goes
     // to page 2, 3, ... This repairs stale stored layouts where apps overflowed
     // page 1 or were appended to the wrong page, while preserving app order.
     import('../apps/registry').then(({ APPS, HOME_APPS }) => {
@@ -382,10 +448,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         seen.add(id);
         return true;
       });
-      const PER_PAGE = 16;
       const pages: string[][] = [];
-      for (let i = 0; i < ordered.length; i += PER_PAGE) {
-        pages.push(ordered.slice(i, i + PER_PAGE));
+      for (let i = 0; i < ordered.length; i += APPS_PER_PAGE) {
+        pages.push(ordered.slice(i, i + APPS_PER_PAGE));
       }
       if (pages.length === 0) pages.push([]);
       setHomePages(pages);
@@ -442,50 +507,44 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+  const lockedRef = useRef(locked);
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+  const notificationsRef = useRef(notifications);
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
-  const addNotification = useCallback(
-    (n: Omit<SystemNotification, 'id' | 'timestamp'>) => {
-      const s = settingsRef.current;
-      const appAllowed = s.appNotifs[n.appId] !== false;
-      if (!appAllowed || s.focusMode) return;
-      if (s.notifSound && s.soundsEnabled) {
-        try {
-          const AC = window.AudioContext ??
-            (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-          if (AC) {
-            const ctx = new AC();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.frequency.value = 880;
-            gain.gain.setValueAtTime(0.06 * (s.volume / 100), ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.25);
-            osc.onended = () => void ctx.close();
-          }
-        } catch {
-          // audio unavailable
-        }
-      }
-      setNotifications((prev) => {
-        const next = [
-          {
-            ...n,
-            id: 'n-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            timestamp: Date.now(),
-          },
-          ...prev,
-        ];
-        return s.notifGrouped ? next.slice(0, 30) : next.slice(0, 8);
-      });
-      setBadges((prev) => ({
-        ...prev,
-        [n.appId]: (prev[n.appId] ?? 0) + 1,
-      }));
-    },
-    []
-  );
+  // Top banner (iOS heads-up notification) shown while the phone is unlocked
+  const [banner, setBanner] = useState<SystemNotification | null>(null);
+  const dismissBanner = useCallback(() => setBanner(null), []);
+
+  const addNotification = useCallback((n: NewNotification) => {
+    const s = settingsRef.current;
+    const appAllowed = s.appNotifs[n.appId] !== false;
+    if (!appAllowed || s.focusMode) return;
+
+    if (s.notifSound && s.soundsEnabled) playNotificationChime(s.volume);
+    if (s.hapticsEnabled) vibrateNotification();
+
+    const { id: customId, badge: badgeOverride, ...rest } = n;
+    const id = customId ?? 'n-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    // Re-delivering a notification that is still unread must not inflate the badge
+    const existing = customId ? notificationsRef.current.find((x) => x.id === customId) : undefined;
+    const notif: SystemNotification = { ...rest, id, timestamp: Date.now(), read: false };
+
+    setNotifications((prev) => {
+      const next = [notif, ...prev.filter((x) => x.id !== id)];
+      return s.notifGrouped ? next.slice(0, 30) : next.slice(0, 8);
+    });
+    setBadges((prev) => ({
+      ...prev,
+      [n.appId]: badgeOverride ?? (prev[n.appId] ?? 0) + (existing && !existing.read ? 0 : 1),
+    }));
+
+    if (!lockedRef.current && s.notifBanners) setBanner(notif);
+  }, []);
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -635,7 +694,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         return next;
       }
       const last = next[next.length - 1];
-      if (last.length >= 16) next.push([appId]);
+      if (last.length >= APPS_PER_PAGE) next.push([appId]);
       else last.push(appId);
       return next;
     });
@@ -651,6 +710,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         toggleFavorite,
         notifications,
         addNotification,
+        banner,
+        dismissBanner,
         dismissNotification,
         clearNotifications,
         markNotificationRead,

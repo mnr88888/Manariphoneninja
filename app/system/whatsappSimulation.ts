@@ -1,51 +1,58 @@
 'use client';
 
 /**
- * Global WhatsApp message simulation engine. Runs once for the whole app
- * (mounted in PhoneFrame), generating occasional incoming messages even when
- * WhatsApp isn't open. Writes into the same 'wa-chats' store the WhatsApp
- * app reads via usePersistentState, raises system notifications/badges, and
- * records a pending deep link for tapping through.
+ * Incoming WhatsApp message engine.
+ *
+ * `sendIncomingWhatsApp()` delivers ONE real message into the shared 'wa-chats'
+ * store (see whatsappStore.ts) and raises the matching system notification:
+ * sound + red badge + banner/lock-screen card, all carrying the same message
+ * text. The chat is updated first, so whatever the person sees on the icon or
+ * in a notification is always really inside WhatsApp.
+ *
+ * `useWhatsAppSimulation()` runs once for the whole phone (mounted in
+ * PhoneFrame) and sends a message every few minutes while the phone is
+ * unlocked. While the lock screen is showing, LockScreen drives its own,
+ * faster feed instead, so the two never double up.
  */
 import { useEffect, useRef } from 'react';
-import { useSystem } from './SystemContext';
+import { useSystem, type NewNotification } from './SystemContext';
+import { deliverWhatsAppMessage } from './whatsappStore';
 
-const SIM_CONTACTS = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
-
-const SIM_MESSAGES = [
-  'وين وصلت؟',
-  'لا تنسى موعد الغد الساعة ٥',
-  'شوف هذي الصورة 😂',
-  'خلينا نتقابل بكرة الصباح',
-  'أرسلت لك الملف على الإيميل',
-  'تعال نتقابل عند المقهى',
-  'الاجتماع تأجل إلى بعد الظهر',
-  'مبرك! لقد فزت بالسحب 🎉',
-  'هل انتهيت من المهمة؟',
-  'لا تقول لأحد سمعت هذا الخبر',
-  'الله يعطيك العافية، شكراً',
-  'الطقس حلو اليوم، نروح البحر؟',
-];
-
-const MSG_KEY = 'wa-chats';
-const DEEPLINK_KEY = 'wa-sim-deeplink';
-// Minimum spacing between simulated messages (2–6 min randomized)
+/** First message arrives this long after the phone starts */
+const FIRST_DELAY = 60 * 1000;
+// Spacing between later messages (2–6 min randomized)
 const MIN_GAP = 2 * 60000;
 const MAX_GAP = 6 * 60000;
 
-interface SimChat {
-  id: string;
-  contactId: string;
-  unread: number;
-  messages: { id: string; text: string; sender: string; timestamp: number }[];
+type AddNotification = (n: NewNotification) => void;
+
+/** Deliver one incoming message + its notification. Returns false if storage failed. */
+export function sendIncomingWhatsApp(addNotification: AddNotification): boolean {
+  const msg = deliverWhatsAppMessage();
+  if (!msg) return false;
+  addNotification({
+    appId: 'whatsapp',
+    // iPhone style: sender as the title, the message itself as the body
+    title: msg.senderName,
+    body: msg.text,
+    targetId: msg.chatId,
+    // Badge mirrors the real unread count inside WhatsApp
+    badge: msg.totalUnread,
+  });
+  return true;
 }
 
 export function useWhatsAppSimulation() {
-  const { settings, addNotification } = useSystem();
+  const { settings, addNotification, locked } = useSystem();
+
   const settingsRef = useRef(settings);
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+  const lockedRef = useRef(locked);
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
   const addNotifRef = useRef(addNotification);
   useEffect(() => {
     addNotifRef.current = addNotification;
@@ -57,70 +64,19 @@ export function useWhatsAppSimulation() {
 
     const fire = () => {
       if (settingsRef.current.whatsappAutoMessages === false) return;
+      if (lockedRef.current) return; // the lock screen has its own feed
       if (typeof document !== 'undefined' && document.hidden) return;
-      let contactId = '';
-      let chatId = '';
-      let text = '';
-      let senderName = '';
-      try {
-        const raw = localStorage.getItem(MSG_KEY);
-        if (!raw) return;
-        const chats: SimChat[] = JSON.parse(raw);
-        if (!Array.isArray(chats) || chats.length === 0) return;
-        contactId = SIM_CONTACTS[Math.floor(Math.random() * SIM_CONTACTS.length)];
-        text = SIM_MESSAGES[Math.floor(Math.random() * SIM_MESSAGES.length)];
-        const target = chats.find((c) => c.contactId === contactId);
-        if (!target) return;
-        chatId = target.id;
-        const msg = {
-          id: 'sim-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          text,
-          sender: 'them',
-          timestamp: Date.now(),
-        };
-        const next = chats.map((c) =>
-          c.id === chatId ? { ...c, unread: c.unread + 1, messages: [...c.messages, msg] } : c
-        );
-        localStorage.setItem(MSG_KEY, JSON.stringify(next));
-        // Notify the WhatsApp app (if open) to refresh from storage
-        window.dispatchEvent(new CustomEvent('wa-sim-message', { detail: { chatId, text } }));
-        // Record deep link for notification tap-through
-        senderName =
-          contactId === 'c1'
-            ? 'أحمد العتيبي'
-            : contactId === 'c2'
-              ? 'فاطمة الزهراء'
-              : contactId === 'c3'
-                ? 'محمد سالم'
-                : contactId === 'c4'
-                  ? 'نورة القحطاني'
-                  : contactId === 'c5'
-                    ? 'خالد المطيري'
-                    : 'سارة الحربي';
-        localStorage.setItem(
-          DEEPLINK_KEY,
-          JSON.stringify({ chatId, text, senderName, ts: Date.now() })
-        );
-      } catch {
-        return; // storage unavailable or malformed
-      }
-      addNotifRef.current({
-        appId: 'whatsapp',
-        title: 'واتساب',
-        body: `${senderName}: ${text}`,
-        targetId: chatId,
-      });
+      sendIncomingWhatsApp(addNotifRef.current);
     };
 
-    const scheduleNext = () => {
-      const gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+    const schedule = (delay: number) => {
       timer = setTimeout(() => {
         if (cancelled) return;
         fire();
-        scheduleNext();
-      }, gap);
+        schedule(MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP));
+      }, delay);
     };
-    scheduleNext();
+    schedule(FIRST_DELAY);
 
     return () => {
       cancelled = true;
