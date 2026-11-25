@@ -16,117 +16,14 @@ import {
 import { usePersistentState, uid, formatArabicTime } from '../shared/utils';
 import { toArabicDigits } from '../shared/utils';
 import { useSystem } from '../../system/SystemContext';
+import { useOS } from '../../OSContext';
+import { type SMSMessage as Message, type SMSContact as Contact, type SMSConversation as Conversation, SMS_CONTACTS as SAMPLE_CONTACTS, SMS_CONVERSATIONS as SAMPLE_CONVERSATIONS } from '../../system/inboxStore';
 
 /* ============================================================
  * Types
  * ============================================================ */
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'me' | 'them';
-  timestamp: number;
-}
-
-interface Contact {
-  id: string;
-  name: string;
-  /** avatar background color (hex) */
-  color: string;
-}
-
-interface Conversation {
-  id: string;
-  contactId: string;
-  messages: Message[];
-  unread: number;
-}
-
 type View = 'list' | 'chat' | 'compose';
-
-/* ============================================================
- * Sample data
- * ============================================================ */
-
-const SAMPLE_CONTACTS: Contact[] = [
-  { id: 'c1', name: 'أحمد العتيبي', color: '#FF3B30' },
-  { id: 'c2', name: 'فاطمة الزهراء', color: '#FF9F0A' },
-  { id: 'c3', name: 'محمد سالم', color: '#34C759' },
-  { id: 'c4', name: 'نورة القحطاني', color: '#007AFF' },
-  { id: 'c5', name: 'خالد المطيري', color: '#5856D6' },
-  { id: 'c6', name: 'سارة الحربي', color: '#FF2D55' },
-];
-
-const now = Date.now();
-
-const SAMPLE_CONVERSATIONS: Conversation[] = [
-  {
-    id: 'conv1',
-    contactId: 'c1',
-    unread: 2,
-    messages: [
-      { id: uid(), text: 'السلام عليكم، كيف حالك؟', sender: 'them', timestamp: now - 1000 * 60 * 60 * 5 },
-      { id: uid(), text: 'وعليكم السلام، الحمد لله بخير، وأنت؟', sender: 'me', timestamp: now - 1000 * 60 * 60 * 4 },
-      { id: uid(), text: 'بخير والحمد لله. هل أكملنا العمل على المشروع؟', sender: 'them', timestamp: now - 1000 * 60 * 30 },
-      { id: uid(), text: 'نعم، سأرسل لك التحديثات قريباً', sender: 'them', timestamp: now - 1000 * 60 * 25 },
-    ],
-  },
-  {
-    id: 'conv2',
-    contactId: 'c2',
-    unread: 0,
-    messages: [
-      { id: uid(), text: 'صباح الخير 🌞', sender: 'them', timestamp: now - 1000 * 60 * 60 * 24 },
-      { id: uid(), text: 'صباح النور والسرور 😊', sender: 'me', timestamp: now - 1000 * 60 * 60 * 23 },
-      { id: uid(), text: 'هل تحب أن نلتقي اليوم؟', sender: 'them', timestamp: now - 1000 * 60 * 60 * 22 },
-      { id: uid(), text: 'بالتأكيد، في أي وقت يناسبك', sender: 'me', timestamp: now - 1000 * 60 * 60 * 21 },
-      { id: uid(), text: 'ممتاز، سأحدد الموعد وأخبرك', sender: 'them', timestamp: now - 1000 * 60 * 60 * 20 },
-    ],
-  },
-  {
-    id: 'conv3',
-    contactId: 'c3',
-    unread: 1,
-    messages: [
-      { id: uid(), text: 'هل حضرت الاجتماع أمس؟', sender: 'them', timestamp: now - 1000 * 60 * 60 * 48 },
-      { id: uid(), text: 'نعم، كان مفيداً جداً', sender: 'me', timestamp: now - 1000 * 60 * 60 * 47 },
-      { id: uid(), text: 'أرسلت لك الملخص في البريد', sender: 'me', timestamp: now - 1000 * 60 * 60 * 46 },
-      { id: uid(), text: 'وصلني، شكراً جزيلاً لك 👏', sender: 'them', timestamp: now - 1000 * 60 * 60 * 45 },
-    ],
-  },
-  {
-    id: 'conv4',
-    contactId: 'c4',
-    unread: 0,
-    messages: [
-      { id: uid(), text: 'مرحبا، هل وصلتك الوثائق؟', sender: 'them', timestamp: now - 1000 * 60 * 60 * 72 },
-      { id: uid(), text: 'نعم، سأراجعها اليوم', sender: 'me', timestamp: now - 1000 * 60 * 60 * 71 },
-      { id: uid(), text: 'تمام، بانتظار ملاحظاتك', sender: 'them', timestamp: now - 1000 * 60 * 60 * 70 },
-    ],
-  },
-  {
-    id: 'conv5',
-    contactId: 'c5',
-    unread: 0,
-    messages: [
-      { id: uid(), text: 'كل عام وأنت بخير 🎉', sender: 'them', timestamp: now - 1000 * 60 * 60 * 96 },
-      { id: uid(), text: 'وأنت بخير وصحة وسلامة', sender: 'me', timestamp: now - 1000 * 60 * 60 * 95 },
-      { id: uid(), text: 'الله يحفظك، نتقابل قريباً إن شاء الله', sender: 'them', timestamp: now - 1000 * 60 * 60 * 94 },
-    ],
-  },
-  {
-    id: 'conv6',
-    contactId: 'c6',
-    unread: 3,
-    messages: [
-      { id: uid(), text: 'هل يمكن أن تساعدني في أمر؟', sender: 'them', timestamp: now - 1000 * 60 * 15 },
-      { id: uid(), text: 'أكيد، تفضلي', sender: 'me', timestamp: now - 1000 * 60 * 12 },
-      { id: uid(), text: 'أحتاج نصائح حول تصميم التطبيق', sender: 'them', timestamp: now - 1000 * 60 * 8 },
-      { id: uid(), text: 'بسرور، سأرسل لك بعض الأمثلة', sender: 'them', timestamp: now - 1000 * 60 * 3 },
-      { id: uid(), text: 'وأي استفسار أنا جاهزة', sender: 'them', timestamp: now - 1000 * 60 * 1 },
-    ],
-  },
-];
 
 /* ============================================================
  * Helpers
@@ -185,11 +82,13 @@ export default function MessagesApp() {
     SAMPLE_CONVERSATIONS
   );
 
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [view, setView] = useState<View>('list');
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [composeRecipient, setComposeRecipient] = useState<string>('');
   const [composeBody, setComposeBody] = useState('');
-  const { pendingDeepLink, consumeDeepLink } = useSystem();
+  const { pendingDeepLink, consumeDeepLink, notifications, markNotificationRead, locked } = useSystem();
+  const { activeApp, screenMode } = useOS();
 
   // Contacts lookup
   const contactById = useMemo(() => {
@@ -233,9 +132,19 @@ export default function MessagesApp() {
   useEffect(() => {
     if (pendingDeepLink?.appId !== 'messages') return;
     const target = pendingDeepLink.targetId;
-    if (target && conversations.some((c) => c.id === target)) openConversation(target);
+    if (!target || !conversations.some((c) => c.id === target)) return;
+    openConversation(target);
+    setFocusMessageId(pendingDeepLink.messageId ?? null);
     consumeDeepLink();
   }, [pendingDeepLink, consumeDeepLink, conversations, openConversation]);
+
+  useEffect(() => {
+    if (view !== 'chat' || !activeConvId || activeApp !== 'messages' || screenMode !== 'app' || locked) return;
+    if (conversations.some((c) => c.id === activeConvId && c.unread > 0)) {
+      setConversations((prev) => prev.map((c) => c.id === activeConvId ? { ...c, unread: 0 } : c));
+    }
+    notifications.filter((n) => n.appId === 'messages' && n.targetId === activeConvId && !n.read).forEach(markNotificationRead);
+  }, [view, activeConvId, activeApp, screenMode, locked, conversations, setConversations, notifications, markNotificationRead]);
 
   const handleDeleteConversation = useCallback(
     (convId: string) => {
@@ -386,7 +295,7 @@ export default function MessagesApp() {
           contactById={contactById}
           search={search}
           onSearch={setSearch}
-          onOpen={openConversation}
+          onOpen={(id) => { setFocusMessageId(null); openConversation(id); }}
           onCompose={() => setView('compose')}
           onDelete={handleDeleteConversation}
         />
@@ -394,6 +303,7 @@ export default function MessagesApp() {
 
       {view === 'chat' && activeConvId && (
         <ChatView
+          focusMessageId={focusMessageId}
           conversation={conversations.find((c) => c.id === activeConvId)!}
           contact={contactById.get(
             conversations.find((c) => c.id === activeConvId)!.contactId
@@ -403,6 +313,7 @@ export default function MessagesApp() {
             setActiveConvId(null);
           }}
           onSend={(text) => {
+            setFocusMessageId(null);
             sendMessage(activeConvId, text);
             simulateReply(activeConvId);
           }}
@@ -670,6 +581,7 @@ function ConversationList({
  * ============================================================ */
 
 interface ChatProps {
+  focusMessageId?: string | null;
   conversation: Conversation;
   contact: Contact;
   onBack: () => void;
@@ -677,7 +589,7 @@ interface ChatProps {
   onDelete: () => void;
 }
 
-function ChatView({ conversation, contact, onBack, onSend, onDelete }: ChatProps) {
+function ChatView({ conversation, contact, onBack, onSend, onDelete, focusMessageId }: ChatProps) {
   const [input, setInput] = useState('');
   const [showInfo, setShowInfo] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -686,9 +598,10 @@ function ChatView({ conversation, contact, onBack, onSend, onDelete }: ChatProps
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) {
- el.scrollTop = el.scrollHeight; }
-  }, [conversation.messages.length]);
+    const node = focusMessageId ? Array.from(el?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).find((e) => e.dataset.messageId === focusMessageId) : null;
+    if (node) node.scrollIntoView({ block: 'center' });
+    else if (el) el.scrollTop = el.scrollHeight;
+  }, [conversation.messages.length, conversation.id, focusMessageId]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -746,7 +659,7 @@ function ChatView({ conversation, contact, onBack, onSend, onDelete }: ChatProps
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar p-3"
+        className="min-h-0 flex-1 flex flex-col gap-1.5 overflow-y-auto no-scrollbar p-3"
       >
         {grouped.map((group, gi) => (
           <div key={gi} className="flex flex-col gap-1.5">
@@ -765,7 +678,7 @@ function ChatView({ conversation, contact, onBack, onSend, onDelete }: ChatProps
               const next = group.items[idx + 1];
               const showTime = !next || next.sender !== m.sender;
               return (
-                <div key={m.id} className="flex flex-col">
+                <div key={m.id} data-message-id={m.id} className="flex flex-col">
                   <div
                     className={`flex items-end gap-1.5 ${
                       isMe ? 'justify-start' : 'justify-end'
