@@ -995,7 +995,7 @@ export default function InstagramApp() {
           initialTitle={ninjaCampaign.title || ''}
           initialDescription={ninjaCampaign.description || ''}
           onClose={() => setModal(null)}
-          onSave={(image, title, description, publish) => {
+          onSave={(image: string, title: string, description: string, publish: boolean) => {
             updateNinjaCampaign({
               image,
               title,
@@ -1035,7 +1035,7 @@ export default function InstagramApp() {
           initialBio={ninjaProfile.bio || 'كل احتياجاتك توصلك مع نينجا 💚'}
           initialAvatar={ninjaProfile.avatar || NINJA_AVATAR}
           onClose={() => setModal(null)}
-          onSave={(name, bio, avatar) => {
+          onSave={(name: string, bio: string, avatar: string) => {
             updateNinjaProfile({ name, bio, avatar });
             setModal(null);
           }}
