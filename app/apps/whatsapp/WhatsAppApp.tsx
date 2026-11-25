@@ -9,6 +9,7 @@ import {
   Phone,
   Video,
   MoreVertical,
+  Pin,
   Send,
   Mic,
   ArrowLeft,
@@ -231,8 +232,10 @@ export default function WhatsAppApp() {
   };
 
   const filteredChats = useMemo(() => {
-    const sorted = [...chats].sort((a, b) =>
-      (b.messages[b.messages.length - 1]?.timestamp ?? 0) - (a.messages[a.messages.length - 1]?.timestamp ?? 0));
+    const sorted = [...chats].sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+      return (b.messages[b.messages.length - 1]?.timestamp ?? 0) - (a.messages[a.messages.length - 1]?.timestamp ?? 0);
+    });
     if (!search.trim()) return sorted;
     const s = search.trim();
     return sorted.filter((c) => {
@@ -534,7 +537,8 @@ export default function WhatsAppApp() {
                   <span className="truncate text-[15px] font-semibold text-white">
                     {contact?.name}
                   </span>
-                  <span className="shrink-0 text-[11px] text-white/50">
+                  <span className="flex shrink-0 items-center gap-1 text-[11px] text-white/50">
+                    {chat.pinned && <Pin className="h-3 w-3 rotate-45 text-[#25D366]" />}
                     {formatArabicTime(last?.timestamp ?? Date.now())}
                   </span>
                 </div>

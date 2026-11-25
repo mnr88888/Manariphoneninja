@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePersistentState } from './utils';
 
 export interface SimPhoto {
@@ -115,30 +115,46 @@ export function usePhotos() {
     }))
   );
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const imageUrlsRef = useRef<Record<string, string>>({});
+  imageUrlsRef.current = imageUrls;
+
+  // Ask the browser not to evict the album when the simulator is closed.
+  // The original files live in IndexedDB and the album metadata in localStorage.
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
+      void navigator.storage.persist();
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const loadedUrls: string[] = [];
-    const imagePhotos = storedPhotos.filter((photo) => photo.imageKey);
-    Promise.all(imagePhotos.map(async (photo) => {
-      const url = await readOriginalImage(photo.imageKey!);
-      if (url) loadedUrls.push(url);
-      return [photo.id, url] as const;
-    })).then((entries) => {
+    const expected = new Set(storedPhotos.filter((photo) => photo.imageKey).map((photo) => photo.id));
+    const missing = storedPhotos.filter((photo) => photo.imageKey && !imageUrlsRef.current[photo.id]);
+    Promise.all(missing.map(async (photo) => [photo.id, await readOriginalImage(photo.imageKey!)] as const)).then((entries) => {
       if (cancelled) {
-        loadedUrls.forEach((url) => URL.revokeObjectURL(url));
+        entries.forEach(([, url]) => { if (url) URL.revokeObjectURL(url); });
         return;
       }
-      setImageUrls((previous) => ({
-        ...previous,
-        ...Object.fromEntries(entries.filter((entry): entry is [string, string] => Boolean(entry[1]))),
-      }));
+      setImageUrls((previous) => {
+        const next = { ...previous };
+        entries.forEach(([id, url]) => { if (url) next[id] = url; });
+        Object.keys(next).forEach((id) => {
+          if (!expected.has(id)) {
+            URL.revokeObjectURL(next[id]);
+            delete next[id];
+          }
+        });
+        return next;
+      });
     });
     return () => {
       cancelled = true;
-      loadedUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [storedPhotos]);
+
+  useEffect(() => () => {
+    Object.values(imageUrlsRef.current).forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   const photos = useMemo(
     () => storedPhotos.map((photo) => ({ ...photo, imageUrl: photo.imageKey ? imageUrls[photo.id] : undefined })),
