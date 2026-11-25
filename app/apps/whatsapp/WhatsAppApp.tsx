@@ -26,112 +26,16 @@ import {
 import { usePersistentState, uid, formatArabicTime } from '../shared/utils';
 import { useSystem } from '../../system/SystemContext';
 import { useOS } from '../../OSContext';
+import {
+  type WAContact,
+  type WAMessage,
+  type WAChat,
+  SAMPLE_CONTACTS,
+  SAMPLE_CHATS,
+  HOUR,
+} from '../../system/whatsappStore';
 
-/* ============================================================
- * Types & sample data
- * ============================================================ */
-
-interface WAContact {
-  id: string;
-  name: string;
-  color: string;
-  about?: string;
-}
-
-interface WAMessage {
-  id: string;
-  text: string;
-  sender: 'me' | 'them';
-  timestamp: number;
-  type?: 'text' | 'voice' | 'image';
-  duration?: number;
-}
-
-interface WAChat {
-  id: string;
-  contactId: string;
-  messages: WAMessage[];
-  unread: number;
-}
-
-const SAMPLE_CONTACTS: WAContact[] = [
-  { id: 'c1', name: 'أحمد العتيبي', color: '#FF3B30', about: 'متاح' },
-  { id: 'c2', name: 'فاطمة الزهراء', color: '#FF9F0A', about: 'مشغول' },
-  { id: 'c3', name: 'محمد سالم', color: '#34C759', about: 'في العمل' },
-  { id: 'c4', name: 'نورة القحطاني', color: '#007AFF', about: 'متاحة' },
-  { id: 'c5', name: 'خالد المطيري', color: '#5856D6', about: 'مشغول' },
-  { id: 'c6', name: 'سارة الحربي', color: '#FF2D55', about: 'متاحة' },
-];
-
-const HOUR = 3600000;
-
-const SAMPLE_CHATS: WAChat[] = [
-  {
-    id: 'ch1',
-    contactId: 'c1',
-    unread: 2,
-    messages: [
-      { id: 'm1', text: 'السلام عليكم أحمد', sender: 'me', timestamp: Date.now() - 5 * HOUR },
-      { id: 'm2', text: 'وعليكم السلام، كيف حالك؟', sender: 'them', timestamp: Date.now() - 5 * HOUR + 60000 },
-      { id: 'm3', text: 'بخير والحمد لله. هل انتهيت من التقرير؟', sender: 'me', timestamp: Date.now() - 5 * HOUR + 120000 },
-      { id: 'm4', text: 'نعم تقريباً، باقي القسم الأخير', sender: 'them', timestamp: Date.now() - 4 * HOUR },
-      { id: 'm5', text: 'ممتاز، أرسله لي عندما تنتهي', sender: 'me', timestamp: Date.now() - 4 * HOUR + 30000 },
-      { id: 'm6', text: 'إن شاء الله، مساء اليوم', sender: 'them', timestamp: Date.now() - HOUR },
-      { id: 'm7', text: 'وش رأيك نراجعه سوا غداً؟', sender: 'them', timestamp: Date.now() - 30 * 60000 },
-    ],
-  },
-  {
-    id: 'ch2',
-    contactId: 'c2',
-    unread: 1,
-    messages: [
-      { id: 'm1', text: 'فاطمة، شكراً على المساعدة أمس', sender: 'me', timestamp: Date.now() - 26 * HOUR },
-      { id: 'm2', text: 'العفو، في أي وقت', sender: 'them', timestamp: Date.now() - 25 * HOUR },
-      { id: 'm3', text: 'هل وصلتك الرسالة الأخيرة؟', sender: 'them', timestamp: Date.now() - 2 * HOUR },
-    ],
-  },
-  {
-    id: 'ch3',
-    contactId: 'c3',
-    unread: 0,
-    messages: [
-      { id: 'm1', text: 'محمد، اجتماع الغاء بيجمد العشرة صباحاً', sender: 'me', timestamp: Date.now() - 3 * 24 * HOUR },
-      { id: 'm2', text: 'تمام، سأحضر في الموعد', sender: 'them', timestamp: Date.now() - 3 * 24 * HOUR + 300000 },
-    ],
-  },
-  {
-    id: 'ch4',
-    contactId: 'c4',
-    unread: 0,
-    messages: [
-      { id: 'm1', text: 'نورة، مبروك التخرج!', sender: 'me', timestamp: Date.now() - 7 * 24 * HOUR },
-      { id: 'm2', text: 'شكراً جزيلاً الله يبارك فيك', sender: 'them', timestamp: Date.now() - 7 * 24 * HOUR + 600000 },
-      { id: 'm3', text: type_voice(30), sender: 'them', timestamp: Date.now() - 7 * 24 * HOUR + 660000, type: 'voice', duration: 30 },
-    ],
-  },
-  {
-    id: 'ch5',
-    contactId: 'c5',
-    unread: 0,
-    messages: [
-      { id: 'm1', text: 'خالد، متى نلتقي؟', sender: 'me', timestamp: Date.now() - 2 * 24 * HOUR },
-      { id: 'm2', text: 'الخميس إن أمكن', sender: 'them', timestamp: Date.now() - 2 * 24 * HOUR + 900000 },
-    ],
-  },
-  {
-    id: 'ch6',
-    contactId: 'c6',
-    unread: 0,
-    messages: [
-      { id: 'm1', text: 'سارة، كيف كان رحلتك؟', sender: 'me', timestamp: Date.now() - 10 * 24 * HOUR },
-      { id: 'm2', text: 'رائعة! أرسلت لك الصور على الإيميل', sender: 'them', timestamp: Date.now() - 9 * 24 * HOUR },
-    ],
-  },
-];
-
-function type_voice(sec: number) {
-  return `[رسالة صوتية ${sec} ثانية]`;
-}
+/* Types & sample data live in ../../system/whatsappStore (shared with the incoming-message engine) */
 
 type WAView = 'chats' | 'chat' | 'calls' | 'status' | 'settings' | 'contact-info';
 
