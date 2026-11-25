@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Send, Search } from 'lucide-react';
 import { useSystem } from '../../system/SystemContext';
 import { useOS } from '../../OSContext';
-import { SocialAppId, SocialThread, SOCIAL_KEYS, SOCIAL_SEEDS } from '../../system/inboxDelivery';
+import { SocialAppId, SocialThread, XActivity, SOCIAL_KEYS, SOCIAL_SEEDS, X_ACTIVITY_KEY, X_ACTIVITY_SEED } from '../../system/inboxDelivery';
 import { makeMessageId } from '../../system/storage';
 import { formatArabicTime, usePersistentState } from './utils';
 
@@ -14,6 +14,7 @@ export default function SocialInbox({ appId, activity = false, onClose }: {
   onClose: () => void;
 }) {
   const [threads, setThreads] = usePersistentState<SocialThread[]>(SOCIAL_KEYS[appId], SOCIAL_SEEDS[appId]);
+  const [activities, setActivities] = usePersistentState<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -47,6 +48,12 @@ export default function SocialInbox({ appId, activity = false, onClose }: {
   }, [activeId, thread, activeApp, screenMode, locked, appId, notifications, markNotificationRead, setThreads]);
 
   useEffect(() => {
+    if (!(activity && appId === 'x') || activeApp !== 'x' || screenMode !== 'app' || locked) return;
+    if (activities.some((item) => !item.read)) setActivities((prev) => prev.map((item) => ({ ...item, read: true })));
+    notifications.filter((n) => n.appId === 'x' && n.targetId === 'x-activity' && !n.read).forEach(markNotificationRead);
+  }, [activity, appId, activeApp, screenMode, locked, activities, notifications, markNotificationRead, setActivities]);
+
+  useEffect(() => {
     const node = focusMessageId ? Array.from(container.current?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).find((e) => e.dataset.messageId === focusMessageId) : null;
     if (node) node.scrollIntoView({ block: 'center' });
     else bottom.current?.scrollIntoView({ block: 'end' });
@@ -59,6 +66,32 @@ export default function SocialInbox({ appId, activity = false, onClose }: {
     setDraft('');
     setFocusMessageId(null);
   };
+
+  if (activity && appId === 'x') {
+    return (
+      <section className={`flex min-h-0 flex-1 flex-col ${surface} ${text}`} dir="rtl" data-inbox-app="x-activity">
+        <header className={`flex shrink-0 items-center gap-3 border-b px-4 py-3 ${border}`}>
+          <button aria-label="رجوع" onClick={onClose}><ArrowRight size={21} /></button>
+          <h2 className="text-[16px] font-bold">النشاط</h2>
+        </header>
+        <div className="no-scrollbar flex-1 overflow-y-auto">
+          {activities.map((item) => (
+            <div key={item.id} className={`flex items-center gap-3 border-b px-4 py-4 ${border}`}>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1D9BF0] text-lg text-white">
+                {item.type === 'like' ? '♥' : item.type === 'repost' ? '↻' : item.type === 'follow' ? '＋' : '@'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-bold">{item.actor}</p>
+                <p className={`text-[13px] ${muted}`}>{item.body}</p>
+                <p className={`mt-1 text-[10px] ${muted}`}>{formatArabicTime(item.timestamp)}</p>
+              </div>
+            </div>
+          ))}
+          {activities.length === 0 && <p className={`p-8 text-center text-sm ${muted}`}>لا توجد تفاعلات</p>}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className={`flex min-h-0 flex-1 flex-col ${surface} ${text}`} dir="rtl" data-inbox-app={appId}>

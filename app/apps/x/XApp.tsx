@@ -537,7 +537,11 @@ export default function XApp() {
   const { isDark, ninjaCampaign, ninjaProfile, pendingDeepLink } = useSystem();
   const [tab, setTab] = useState<Tab>('home');
   useEffect(() => {
-    if (pendingDeepLink?.appId === 'x') { setComposeOpen(false); setCampaignOpen(false); setTab('messages'); }
+    if (pendingDeepLink?.appId === 'x') {
+      setComposeOpen(false);
+      setCampaignOpen(false);
+      setTab(pendingDeepLink.targetId === 'x-activity' ? 'activity' : 'messages');
+    }
   }, [pendingDeepLink]);
   const [feedTab, setFeedTab] = useState<FeedTab>('foryou');
   const [activeTag, setActiveTag] = useState<string>(NINJA_HASHTAG);

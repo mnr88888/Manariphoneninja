@@ -16,6 +16,14 @@ export interface SocialThread {
   color: string;
   messages: SocialMessage[];
 }
+export interface XActivity {
+  id: string;
+  actor: string;
+  type: 'like' | 'repost' | 'follow' | 'mention';
+  body: string;
+  timestamp: number;
+  read: boolean;
+}
 export interface NinjaInboxMessage {
   id: string;
   title: string;
@@ -26,13 +34,18 @@ export interface NinjaInboxMessage {
 export const SOCIAL_KEYS: Record<SocialAppId, string> = {
   instagram: 'instagram-dm-threads-v1', x: 'x-dm-threads-v1',
 };
+export const X_ACTIVITY_KEY = 'x-activity-v1';
+export const X_ACTIVITY_SEED: XActivity[] = [
+  { id: 'x-activity-seed-1', actor: 'الدكتورة سارة', type: 'like', body: 'أعجبت بمنشورك عن فكرة المحاكي', timestamp: Date.now() - 35 * 60000, read: true },
+  { id: 'x-activity-seed-2', actor: 'ريم الدوسري', type: 'repost', body: 'أعادت نشر منشورك عن تجربة المستخدم', timestamp: Date.now() - 2 * 3600000, read: true },
+];
 function socialSeed(appId: SocialAppId): SocialThread[] {
   return [
-    { id: `${appId}-reem`, name: 'ريم الدوسري', color: '#AF52DE', messages: [
+    { id: `${appId}-sarah`, name: 'الدكتورة سارة', color: '#AF52DE', messages: [
       { id: `${appId}-seed-1`, text: appId === 'instagram' ? 'لقيت مرجع حلو للواجهة، تبين أوريك؟' : 'شفت نقاش تصميم المحاكيات؟ خلينا ناخذ منه أفكار.', sender: 'them', timestamp: Date.now() - 45 * 60000, read: true },
       { id: `${appId}-seed-2`, text: 'أكيد، خلينا نشوفه بعد المحاضرة', sender: 'me', timestamp: Date.now() - 40 * 60000, read: true },
     ] },
-    { id: `${appId}-noura`, name: 'نورة القحطاني', color: '#007AFF', messages: [
+    { id: `${appId}-reem`, name: 'ريم الدوسري', color: '#007AFF', messages: [
       { id: `${appId}-seed-3`, text: 'القهوة بعد المحاضرة؟ عندي اقتراح للمشروع.', sender: 'them', timestamp: Date.now() - 30 * 60000, read: true },
     ] },
   ];
@@ -45,6 +58,14 @@ export const NINJA_INBOX_SEED: NinjaInboxMessage[] = RAMADAN_NOTIFICATIONS.map((
 function seedArray<T>(key: string, fallback: T[]) {
   if (!Array.isArray(readStore<T[] | null>(key, null))) writeStore(key, fallback);
 }
+function normalizeSocialNames(appId: SocialAppId): void {
+  const key = SOCIAL_KEYS[appId];
+  const threads = readStore<SocialThread[] | null>(key, null);
+  if (!Array.isArray(threads)) return;
+  const names = ['الدكتورة سارة', 'ريم الدوسري'];
+  const normalized = threads.map((thread, index) => ({ ...thread, name: names[index % names.length] }));
+  if (JSON.stringify(normalized) !== JSON.stringify(threads)) writeStore(key, normalized);
+}
 /** Apps do not have to be opened for an incoming message to be stored. */
 export function ensureInboxStores() {
   if (typeof window === 'undefined') return;
@@ -53,6 +74,9 @@ export function ensureInboxStores() {
   seedArray('messages.conversations', SMS_CONVERSATIONS);
   seedArray(SOCIAL_KEYS.instagram, SOCIAL_SEEDS.instagram);
   seedArray(SOCIAL_KEYS.x, SOCIAL_SEEDS.x);
+  normalizeSocialNames('instagram');
+  normalizeSocialNames('x');
+  seedArray(X_ACTIVITY_KEY, X_ACTIVITY_SEED);
   if (!Array.isArray(readStore(NINJA_INBOX_KEY, null))) {
     const legacyRead = readStore<string[]>('ninja-inbox-read', []);
     writeStore(NINJA_INBOX_KEY, NINJA_INBOX_SEED.map((m) => ({ ...m, read: legacyRead.length ? legacyRead.includes(m.id) : true })));
@@ -93,6 +117,16 @@ const SOCIAL_POOL: Record<SocialAppId, string[]> = {
   instagram: ['شفت الستوري حقك، شكل القهوة يفوز!', 'لقيت لوحة ألوان هادئة للمحاكي، نجرب البنفسجي ولا الأزرق؟', 'نبي الواجهة واضحة حتى وأنا أستخدم الجوال بيد وحدة.', 'المحاكي صار مرتب! نجرّب الإشعارات وأنا داخل إنستقرام؟', 'صورت لك أفكار للقروب، بس لا تعتمدين الصورة اللي فيها كوب القهوة بالغلط.', 'الخط الجديد واضح مرة في شاشة القفل.', 'نشرت لقطة من الواجهة، الفريق تحمس لها.', 'وش رأيك نضيف حركة بسيطة عند فتح التطبيق؟', 'أرسلت لك مرجع لأيقونات iOS.', 'التدرج البنفسجي طلع فخم مع الوضع الداكن.', 'جربت البحث داخل المحادثات واشتغل بسرعة.', 'خلينا نصور تجربة الإشعار للعرض.', 'تعليق الدكتورة على الفكرة كان مشجع.', 'باقي نراجع المسافات بين الأيقونات.', 'أحس المحاكي صار قريب من تجربة الجوال الحقيقية.', 'إذا خلصنا نحتفل بقهوة بدون تعديل ألوان 😂'],
   x: ['قريت نقاش عن تجربة المستخدم: أهم شيء الرسالة ما تختفي بعد التحديث.', 'وش الأفضل للمشروع: محاكي كامل ولا سيناريو تفاعلي واحد؟ أنا أميل للكامل.', 'ردك على الفكرة عجبني، نضيف اختبار استخدام بسيط؟', 'إذا خلصنا المشروع بنكتب ثريد: كيف نجونا من زر رجوع واحد.', 'فكرة اليوم: الإشعار يفتح نفس المحادثة بدل ما يوديك للصفحة الرئيسية.', 'اختبار صغير: هل المستخدم يعرف يرجع للشاشة الرئيسية؟', 'التصميم الهادئ يخلّي التفاعل أوضح بكثير.', 'كتبت مسودة الثريد عن رحلة بناء المحاكي.', 'زر الكاميرا الحقيقي يحتاج إذن المستخدم وهذا ممتاز للخصوصية.', 'حفظ البيانات محلياً خلّى التجربة ثابتة بعد التحديث.', 'أعجبني تنوع الإشعارات بين التطبيقات.', 'لا تنسون توثقون سبب اختيار Next.js.', 'المشروع يثبت أن التفاصيل الصغيرة تصنع الفرق.', 'باقي لمسة أخيرة على شاشة القفل.', 'جهزت صورة مقارنة بين قبل وبعد.', 'الفريق جاهز للبروفة النهائية.'],
 };
+const X_ACTIVITY_POOL: Array<Pick<XActivity, 'actor' | 'type' | 'body'>> = [
+  { actor: 'الدكتورة سارة', type: 'like', body: 'أعجبت بمنشورك عن المحاكي' }, { actor: 'ريم الدوسري', type: 'repost', body: 'أعادت نشر منشورك عن تجربة المستخدم' },
+  { actor: 'زهراء علي', type: 'follow', body: 'بدأت بمتابعتك' }, { actor: 'فرقان', type: 'mention', body: 'ذكرتك في منشور عن العرض' },
+  { actor: 'زهراء زهير', type: 'like', body: 'أعجبت بصورتك من الكاميرا' }, { actor: 'فاطمه ماجد', type: 'repost', body: 'أعادت نشر تحديث المشروع' },
+  { actor: 'الدكتورة سارة', type: 'like', body: 'أعجبت بمنشورك الأخير' }, { actor: 'ريم الدوسري', type: 'follow', body: 'بدأت بمتابعتك' },
+  { actor: 'زهراء علي', type: 'repost', body: 'أعادت نشر فكرة الإشعارات' }, { actor: 'فرقان', type: 'like', body: 'أعجب بمنشورك عن تجربة المستخدم' },
+  { actor: 'زهراء زهير', type: 'mention', body: 'ذكرتك في منشور الفريق' }, { actor: 'فاطمه ماجد', type: 'like', body: 'أعجبت بمنشورك عن التصميم' },
+  { actor: 'الدكتورة سارة', type: 'repost', body: 'أعادت نشر منشور العرض النهائي' }, { actor: 'ريم الدوسري', type: 'like', body: 'أعجبت بمنشورك عن الكاميرا الحقيقية' },
+  { actor: 'فرقان', type: 'follow', body: 'بدأ بمتابعتك' }, { actor: 'زهراء زهير', type: 'repost', body: 'أعادت نشر ملخص المشروع' },
+];
 function nextIndex(key: string, length: number): number {
   const cursor = readStore<number>(`sim-cursor-${key}`, 0);
   const valid = typeof cursor === 'number' && Number.isFinite(cursor) ? cursor : 0;
@@ -131,6 +165,13 @@ export function deliverInboxMessage(appId: DeliveredInboxMessage['appId']): Deli
     if (!writeStore(NINJA_INBOX_KEY, next)) return null;
     return { id, appId, title: sample.title, body: sample.body, targetId: id, messageId: id, badge: next.filter((m) => !m.read).length };
   }
+  if (appId === 'x') {
+    const sample = X_ACTIVITY_POOL[nextIndex('x-activity', X_ACTIVITY_POOL.length)];
+    const activity: XActivity = { id, ...sample, timestamp, read: false };
+    const next = [activity, ...readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED)];
+    if (!writeStore(X_ACTIVITY_KEY, next)) return null;
+    return { id, appId, title: sample.actor, body: sample.body, targetId: 'x-activity', messageId: id, badge: next.filter((item) => !item.read).length };
+  }
   const index = nextIndex(appId, SOCIAL_POOL[appId].length);
   const seeds = SOCIAL_SEEDS[appId];
   const seed = seeds[index % seeds.length];
@@ -151,7 +192,7 @@ export function getInboxBadges(): Record<string, number> {
     mail: readStore<Email[]>('mail-emails', SAMPLE_EMAILS).filter((e) => e.folder === 'inbox' && !e.read).length,
     ninja: readStore<NinjaInboxMessage[]>(NINJA_INBOX_KEY, NINJA_INBOX_SEED).filter((m) => !m.read).length,
     instagram: countSocialUnread(readStore(SOCIAL_KEYS.instagram, SOCIAL_SEEDS.instagram)),
-    x: countSocialUnread(readStore(SOCIAL_KEYS.x, SOCIAL_SEEDS.x)),
+    x: readStore<XActivity[]>(X_ACTIVITY_KEY, X_ACTIVITY_SEED).filter((item) => !item.read).length,
     whatsapp: readStore<{unread: number}[]>('wa-chats', []).reduce((sum, c) => sum + c.unread, 0),
   };
 }

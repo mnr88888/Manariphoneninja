@@ -43,6 +43,8 @@ export const WA_CONTACTS_KEY = 'wa-contacts';
 export const WA_STORE_EVENT = 'simulator-store-change';
 export const NINJA_CONTACT_ID = 'c-ninja';
 export const NINJA_CHAT_ID = 'ch-ninja';
+export const DOCTOR_CONTACT_ID = 'c-doctor-sarah';
+export const DOCTOR_CHAT_ID = 'ch-doctor-sarah';
 export const PROJECT_CONTACT_ID = 'c-project-sarah';
 export const PROJECT_CHAT_ID = 'ch-project-sarah';
 export const PROJECT_GROUP_NAME = 'مشروع الدكتوره ساره';
@@ -63,6 +65,7 @@ export const SAMPLE_CONTACTS: WAContact[] = [
   { id: 'c4', name: 'نورة القحطاني', color: '#007AFF', about: 'متاحة', kind: 'person' },
   { id: 'c5', name: 'خالد المطيري', color: '#5856D6', about: 'مشغول', kind: 'person' },
   { id: 'c6', name: 'سارة الحربي', color: '#FF2D55', about: 'متاحة', kind: 'person' },
+  { id: DOCTOR_CONTACT_ID, name: 'الدكتورة سارة', color: '#FF2D55', about: 'مشرفة المشروع', kind: 'person' },
   ...PROJECT_MEMBERS.filter((member) => member.id !== 'me').map((member) => ({
     ...member, kind: 'person' as const, about: 'زميلة المشروع',
   })),
@@ -71,6 +74,13 @@ export const SAMPLE_CONTACTS: WAContact[] = [
 ];
 
 const seedTime = Date.now();
+const nextMondayMorning = (() => {
+  const date = new Date(seedTime);
+  const daysUntilMonday = (8 - date.getDay()) % 7 || 7;
+  date.setDate(date.getDate() + daysUntilMonday);
+  date.setHours(10, 0, 0, 0);
+  return date.getTime();
+})();
 const sampleMessage = (id: string, text: string, sender: 'me' | 'them', ago: number): WAMessage => ({
   id, text, sender, timestamp: seedTime - ago,
 });
@@ -160,6 +170,12 @@ export const SAMPLE_CHATS: WAChat[] = [
   { id: NINJA_CHAT_ID, contactId: NINJA_CONTACT_ID, unread: 1, messages: [
     sampleMessage('ninja-seed-1', 'هلا منار! هنا محادثة نينجا المخصصة للعروض وأكواد الخصم.', 'them', 90 * 60000),
     sampleMessage('ninja-seed-2', 'عرض تجريبي داخل المحاكي: خصم ٢٠٪ بكود NINJA20. الكود للعرض فقط وليس عرضاً تجارياً فعلياً.', 'them', 12 * 60000),
+  ] },
+  { id: DOCTOR_CHAT_ID, contactId: DOCTOR_CONTACT_ID, unread: 0, messages: [
+    { id: 'doctor-seed-1', text: 'دكتوره ساره أنا متحمسه أعرض شغلي يوم الاثنين القادم.', sender: 'me', senderId: 'me', senderName: 'منار', timestamp: seedTime - 600000, type: 'text' },
+    { id: 'doctor-seed-2', text: 'أوف حمستيني معاك يا منار، متأكدة إن شغلك بيطلع رائع.', sender: 'them', senderId: DOCTOR_CONTACT_ID, senderName: 'الدكتورة سارة', timestamp: seedTime - 540000, type: 'text' },
+    { id: 'doctor-seed-3', text: 'هاه دكتوره، أستاهل بونس صح؟', sender: 'me', senderId: 'me', senderName: 'منار', timestamp: nextMondayMorning + 60000, type: 'text' },
+    { id: 'doctor-seed-4', text: 'تستاهلين على هالشغل يا منار، أبدعتي والله.', sender: 'them', senderId: DOCTOR_CONTACT_ID, senderName: 'الدكتورة سارة', timestamp: nextMondayMorning + 120000, type: 'text' },
   ] },
   { id: PROJECT_CHAT_ID, contactId: PROJECT_CONTACT_ID, isGroup: true, name: PROJECT_GROUP_NAME,
     participants: PROJECT_MEMBERS, unread: 0, nextIncomingIndex: 0, messages: groupSeedMessages },

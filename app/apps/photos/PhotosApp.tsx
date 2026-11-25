@@ -70,7 +70,7 @@ export default function PhotosApp() {
           </button>
           <div
             className="h-[400px] w-[85%] rounded-[18px]"
-            style={{ backgroundImage: viewerPhoto.gradient }}
+            style={{ backgroundImage: viewerPhoto.gradient.startsWith('data:image/') ? `url("${viewerPhoto.gradient}")` : viewerPhoto.gradient }}
           />
           <button
             onClick={() =>
@@ -151,7 +151,7 @@ export default function PhotosApp() {
               >
                 <div
                   className="h-32 w-full rounded-[14px]"
-                  style={{ backgroundImage: cover?.gradient }}
+                  style={{ backgroundImage: cover?.gradient?.startsWith('data:image/') ? `url("${cover.gradient}")` : cover?.gradient }}
                 />
                 <p className="mt-1 text-sm font-medium text-black">{album}</p>
                 <p className="text-xs text-black/40">{count} صورة</p>
@@ -205,7 +205,7 @@ export default function PhotosApp() {
               key={p.id}
               onClick={() => setViewerIndex(i)}
               className="relative aspect-square"
-              style={{ backgroundImage: p.gradient }}
+              style={{ backgroundImage: p.gradient.startsWith('data:image/') ? `url("${p.gradient}")` : p.gradient }}
             >
               {p.favorite && (
                 <Heart
