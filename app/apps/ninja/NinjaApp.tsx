@@ -38,6 +38,7 @@ import {
   formatRelativeTime,
 } from '../shared/utils';
 import { useSystem } from '../../system/SystemContext';
+import { NINJA_INBOX_KEY, NINJA_INBOX_SEED, type NinjaInboxMessage } from '../../system/inboxDelivery';
 import {
   NINJA_CATEGORIES,
   NINJA_BANNERS,
@@ -322,7 +323,7 @@ export default function NinjaApp() {
     pendingDeepLink,
     consumeDeepLink,
   } = useSystem();
-  const [inboxRead, setInboxRead] = usePersistentState<string[]>('ninja-inbox-read', []);
+  const [ninjaMessages, setNinjaMessages] = usePersistentState<NinjaInboxMessage[]>(NINJA_INBOX_KEY, NINJA_INBOX_SEED);
   const [activeInboxId, setActiveInboxId] = useState<string | null>(null);
 
   // ---- local UI state ----
@@ -363,26 +364,12 @@ export default function NinjaApp() {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [screen, activeCategoryId, activeProductId]);
 
-  // Source messages: stable ids shared with the system notification store
-  const ninjaMessages = useMemo(
-    () => RAMADAN_NOTIFICATIONS.map((n, i) => ({ id: `ninja-ramadan-${i}`, ...n })),
-    []
-  );
-
-  const isInboxRead = useCallback(
-    (id: string) =>
-      systemNotifications.find((n) => n.id === id)?.read ?? inboxRead.includes(id),
-    [systemNotifications, inboxRead]
-  );
-
-  const markInboxRead = useCallback(
-    (id: string) => {
-      setInboxRead((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      const sys = systemNotifications.find((n) => n.id === id);
-      if (sys && !sys.read) markNotificationRead(sys);
-    },
-    [systemNotifications, markNotificationRead, setInboxRead]
-  );
+  const isInboxRead = useCallback((id: string) => ninjaMessages.find((m) => m.id === id)?.read ?? true, [ninjaMessages]);
+  const markInboxRead = useCallback((id: string) => {
+    setNinjaMessages((prev) => prev.map((m) => m.id === id ? { ...m, read: true } : m));
+    const notification = systemNotifications.find((n) => n.targetId === id || n.id === id);
+    if (notification && !notification.read) markNotificationRead(notification);
+  }, [systemNotifications, markNotificationRead, setNinjaMessages]);
 
   const ninjaUnread = ninjaMessages.filter((m) => !isInboxRead(m.id)).length;
 
@@ -825,7 +812,7 @@ export default function NinjaApp() {
             <div className="mt-3 flex items-center justify-between px-1">
               <span className="text-[12px] text-black/40">
                 {formatRelativeTime(
-                  systemNotifications.find((n) => n.id === active.id)?.timestamp ?? Date.now()
+                  active.timestamp
                 )}
               </span>
               <span className="text-[11px] font-bold" style={{ color: EMB }}>
@@ -858,7 +845,7 @@ export default function NinjaApp() {
       <div className="flex-1 overflow-y-auto p-4">
         {ninjaMessages.map((m) => {
           const sys = systemNotifications.find((n) => n.id === m.id);
-          const ts = sys?.timestamp ?? Date.now();
+          const ts = m.timestamp;
           const read = isInboxRead(m.id);
           return (
             <button
