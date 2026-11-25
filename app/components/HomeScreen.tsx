@@ -158,7 +158,7 @@ export default function HomeScreen() {
         >
           {homePages.map((pageApps, pi) => (
             <div key={pi} dir="rtl" className="h-full w-full shrink-0 overflow-hidden px-6 pb-2 pt-14">
-              <div className="grid grid-cols-4 gap-x-4 gap-y-5">
+              <div className="grid grid-cols-4 gap-x-4 gap-y-4">
                 {pageApps.map((appId, idx) => {
                   const app = getApp(appId);
                   if (!app) return null;

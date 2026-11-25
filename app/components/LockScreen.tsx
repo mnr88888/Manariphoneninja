@@ -6,6 +6,28 @@ import { useSystem, wallpaperCss } from '../system/SystemContext';
 import { useOS } from '../OSContext';
 import { getApp } from '../apps/registry';
 import { Lock, Flashlight, Camera, ChevronUp, X } from 'lucide-react';
+import { RAMADAN_NOTIFICATIONS } from '../apps/ninja/data';
+import { sendIncomingWhatsApp } from '../system/whatsappSimulation';
+
+/* ============================================================
+ * Lock-screen notification feed
+ * ------------------------------------------------------------
+ * The lock screen starts clean. Once the screen is on, notifications
+ * arrive one by one, like on a real iPhone:
+ *   - the first one lands LOCK_FIRST_DELAY_MS after the screen turns on
+ *   - the next ones follow every LOCK_GAP_MIN_MS..LOCK_GAP_MAX_MS
+ * Change the order / timing here.
+ * ============================================================ */
+const LOCK_FIRST_DELAY_MS = 60 * 1000;
+const LOCK_GAP_MIN_MS = 40 * 1000;
+const LOCK_GAP_MAX_MS = 70 * 1000;
+/** Order of the feed; it loops. 'ninja' = campaign push, 'whatsapp' = chat message */
+const LOCK_FEED_SCRIPT: ('ninja' | 'whatsapp')[] = ['ninja', 'whatsapp', 'whatsapp', 'ninja', 'whatsapp'];
+/** Max cards shown at once; the rest collapse into a "+N more" pill */
+const MAX_VISIBLE = 3;
+
+// Survives lock/unlock cycles so the Ninja messages keep rotating
+let ninjaCursor = 0;
 
 const DAYS = [
   'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء',
@@ -24,7 +46,8 @@ export default function LockScreen() {
     settings,
     notifications,
     dismissNotification,
-    badges,
+    openNotification,
+    addNotification,
   } = useSystem();
 
   const { openApp } = useOS();
@@ -37,6 +60,12 @@ export default function LockScreen() {
   const [dragY, setDragY] = useState(0);
   const startY = useRef<number | null>(null);
   const [unlocking, setUnlocking] = useState(false);
+
+  // Only notifications that arrive while this screen is on are shown here
+  const wakeAt = useRef(Date.now());
+  const unlockingRef = useRef(false);
+  const [leaving, setLeaving] = useState<string[]>([]);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     const update = () => {
@@ -70,9 +99,67 @@ export default function LockScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // Refresh relative timestamps ("الآن" -> "منذ ٢ د")
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  // The feed: notifications arrive over time while the lock screen is on
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let step = 0;
+
+    const deliver = () => {
+      const kind = LOCK_FEED_SCRIPT[step % LOCK_FEED_SCRIPT.length];
+      step += 1;
+      if (kind === 'ninja') {
+        const i = ninjaCursor % RAMADAN_NOTIFICATIONS.length;
+        ninjaCursor += 1;
+        const msg = RAMADAN_NOTIFICATIONS[i];
+        addNotification({
+          appId: 'ninja',
+          id: `ninja-ramadan-${i}`,
+          title: msg.title,
+          body: msg.body,
+          targetId: `ninja-ramadan-${i}`,
+        });
+      } else {
+        sendIncomingWhatsApp(addNotification);
+      }
+    };
+
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => {
+        if (cancelled || unlockingRef.current) return;
+        deliver();
+        schedule(LOCK_GAP_MIN_MS + Math.random() * (LOCK_GAP_MAX_MS - LOCK_GAP_MIN_MS));
+      }, delay);
+    };
+    schedule(LOCK_FIRST_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [addNotification]);
+
+  const dismissWithAnimation = useCallback(
+    (id: string) => {
+      setLeaving((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      setTimeout(() => {
+        dismissNotification(id);
+        setLeaving((prev) => prev.filter((x) => x !== id));
+      }, 280);
+    },
+    [dismissNotification]
+  );
+
   const unlock = useCallback(() => {
     if (unlocking) return;
 
+    unlockingRef.current = true;
     setUnlocking(true);
 
     setTimeout(() => {
@@ -109,11 +196,13 @@ export default function LockScreen() {
     }
   }, [dragY, unlock]);
 
-  const lockNotifs = settings.notifLockScreen
-    ? notifications
-        .filter(n => settings.appNotifs[n.appId] !== false)
-        .slice(0, 3)
+  const arrived = settings.notifLockScreen
+    ? notifications.filter(
+        n => n.timestamp >= wakeAt.current && settings.appNotifs[n.appId] !== false
+      )
     : [];
+  const lockNotifs = arrived.slice(0, MAX_VISIBLE);
+  const hiddenCount = arrived.length - lockNotifs.length;
 
   const wpStyle = {
     backgroundImage: wallpaperCss(wallpaper.lock),
@@ -123,11 +212,6 @@ export default function LockScreen() {
       ? `blur(${wallpaper.blur}px)`
       : undefined,
   };
-
-  const batteryBadge = Object.values(badges).reduce(
-    (s, v) => s + v,
-    0
-  );
 
   return (
     <div
@@ -190,70 +274,76 @@ export default function LockScreen() {
         >
           {time}
         </h1>
-
-        {batteryBadge > 0 && (
-          <span className="mt-3 rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-[11px] font-semibold text-black/70 backdrop-blur-xl">
-            {toAr(batteryBadge)} إشعار بانتظارك
-          </span>
-        )}
       </div>
 
-      {/* Notifications - Always Light */}
-      <div className="z-10 mt-6 w-full flex-1 space-y-2 overflow-hidden px-5">
+      {/* Notifications — anchored to the bottom, newest on top, rolling up like iOS */}
+      <div className="z-10 mt-4 flex min-h-0 w-full flex-1 flex-col justify-end gap-2 overflow-hidden px-5 pb-3">
         {lockNotifs.map(n => {
           const app = getApp(n.appId);
+          const isLeaving = leaving.includes(n.id);
 
           return (
             <div
-              key={n.id}
-              className="flex items-start gap-3 rounded-[22px] border border-white/80 bg-white/85 p-3.5 shadow-[0_3px_18px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
+              key={n.id + '-' + n.timestamp}
+              className={isLeaving ? 'lock-notif-out' : 'lock-notif-in'}
             >
-              <button
-                onClick={() => {
-                  if (app) openApp(app.id);
-                  unlock();
-                }}
-                className="flex min-w-0 flex-1 items-start gap-3 text-right"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/5">
-                  {app && (
-                    <img
-                      src={app.imageIcon}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13px] font-bold text-black/90">
-                      {n.title}
-                    </span>
-
-                    <span className="shrink-0 text-[10px] text-black/40">
-                      الآن
-                    </span>
+              <div className="flex items-start gap-3 rounded-[22px] border border-white/80 bg-white/85 p-3.5 shadow-[0_3px_18px_rgba(0,0,0,0.08)] backdrop-blur-2xl">
+                <button
+                  onClick={() => {
+                    openNotification(n);
+                    if (app) openApp(app.id);
+                    unlock();
+                  }}
+                  className="flex min-w-0 flex-1 items-start gap-3 text-right"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/5">
+                    {app && (
+                      <img
+                        src={app.imageIcon}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                   </div>
 
-                  {settings.notifPreviews && (
-                    <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-black/65">
-                      {n.body}
-                    </p>
-                  )}
-                </div>
-              </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-[13px] font-bold text-black/90">
+                        {n.title}
+                      </span>
 
-              <button
-                onClick={() => dismissNotification(n.id)}
-                className="pt-0.5 text-black/35 active:text-black/70"
-                aria-label="حذف الإشعار"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+                      <span className="shrink-0 text-[10px] text-black/40">
+                        {relTime(now - n.timestamp)}
+                      </span>
+                    </div>
+
+                    {settings.notifPreviews && (
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-black/65">
+                        {n.body}
+                      </p>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => dismissWithAnimation(n.id)}
+                  className="pt-0.5 text-black/35 active:text-black/70"
+                  aria-label="حذف الإشعار"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           );
         })}
+
+        {hiddenCount > 0 && (
+          <div className="flex justify-center">
+            <span className="rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-[11px] font-semibold text-black/70 backdrop-blur-xl">
+              +{toAr(hiddenCount)} {hiddenCount === 1 ? 'إشعار إضافي' : 'إشعارات إضافية'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Bottom shortcuts */}
@@ -305,4 +395,12 @@ function toAr(n: number): string {
     /[0-9]/g,
     d => '٠١٢٣٤٥٦٧٨٩'[+d]
   );
+}
+
+/** iOS-style short relative time for lock screen cards */
+function relTime(diffMs: number): string {
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'الآن';
+  if (mins < 60) return `منذ ${toAr(mins)} د`;
+  return `منذ ${toAr(Math.floor(mins / 60))} س`;
 }
