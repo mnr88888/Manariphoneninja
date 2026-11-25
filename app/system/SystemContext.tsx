@@ -116,6 +116,7 @@ const SAMPLE_CONTACTS: SystemContact[] = [
   { id: 'c6', name: 'سارة الحربي', phone: '٠٥٥٦٧٨٩٠١٢', color: '#FF2D55' },
   { id: 'c7', name: 'عبدالله الشمري', phone: '٠٥٥٧٨٩٠١٢٣', color: '#FF6B35' },
   { id: 'c8', name: 'ريم الدوسري', phone: '٠٥٥٨٩٠١٢٣٤', color: '#00C7BE' },
+  { id: 'c-brother', name: 'اخوي', phone: '٠٥٥٠٠٠٠٠٠٠', color: '#5B6EF5' },
 ];
 
 /* ============================================================
@@ -331,34 +332,14 @@ const DEFAULT_CAMPAIGN: NinjaCampaign = {
  * Notification feedback (sound + haptics)
  * ============================================================ */
 
-/** Short three-note chime, in the spirit of the iPhone "Tri-tone" alert */
+/** Apple's Note alert recording, stored locally so notification playback is consistent. */
 function playNotificationChime(volume: number) {
   try {
-    const AC =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    const master = ctx.createGain();
-    master.gain.value = 0.08 * (volume / 100);
-    master.connect(ctx.destination);
-    const notes = [1318.5, 1568, 2093]; // E6, G6, C7
-    notes.forEach((freq, i) => {
-      const t0 = ctx.currentTime + i * 0.11;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(1, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
-      osc.connect(gain).connect(master);
-      osc.start(t0);
-      osc.stop(t0 + 0.34);
-    });
-    setTimeout(() => void ctx.close(), 900);
+    const audio = new Audio('/sounds/note.mp3');
+    audio.volume = Math.max(0, Math.min(1, volume / 100));
+    void audio.play().catch(() => undefined);
   } catch {
-    // audio unavailable
+    // audio unavailable or blocked until the first user gesture
   }
 }
 
@@ -393,7 +374,11 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   // ---- Hydrate from localStorage on mount ----
   useEffect(() => {
     const storedContacts = loadJSON<SystemContact[] | null>('ios-contacts', null);
-    if (storedContacts) setContacts(storedContacts);
+    if (storedContacts) {
+      const next = storedContacts.some((c) => c.id === 'c-brother') ? storedContacts : [...storedContacts, SAMPLE_CONTACTS[SAMPLE_CONTACTS.length - 1]];
+      setContacts(next);
+      writeStore('ios-contacts', next);
+    }
 
     const storedSettings = loadJSON<Partial<SystemSettings> | null>('ios-settings', null);
     if (storedSettings) setSettings({ ...DEFAULT_SETTINGS, ...storedSettings });
@@ -627,7 +612,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedCampaign = loadJSON<NinjaCampaign | null>('ninja-campaign', null);
     // The campaign hashtag is locked: always use the current one (overrides older saved values)
-    if (storedCampaign) setNinjaCampaign({ ...DEFAULT_CAMPAIGN, ...storedCampaign, hashtag: NINJA_HASHTAG });
+    if (storedCampaign) {
+      const legacyText = `${storedCampaign.title || ''} ${storedCampaign.description || ''}`;
+      const migrated = /العيد|eid/i.test(legacyText)
+        ? { ...storedCampaign, title: 'مسابقة رمضان', description: 'رمضان أحلى مع نينجا 🌙💚 خمّن قيمة سلة رمضان واطلب احتياجات إفطارك وسحورك من نينجا.' }
+        : storedCampaign;
+      setNinjaCampaign({ ...DEFAULT_CAMPAIGN, ...migrated, hashtag: NINJA_HASHTAG });
+    }
     const storedProfile = loadJSON<NinjaProfile | null>('ninja-profile', null);
     if (storedProfile) setNinjaProfile({ ...DEFAULT_NINJA_PROFILE, ...storedProfile });
   }, []);

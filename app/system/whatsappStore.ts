@@ -49,6 +49,22 @@ export const DOCTOR_CHAT_ID = 'ch-doctor-sarah';
 export const PROJECT_CONTACT_ID = 'c-project-sarah';
 export const PROJECT_CHAT_ID = 'ch-project-sarah';
 export const PROJECT_GROUP_NAME = 'مشروع الدكتوره ساره';
+export const BROTHER_CONTACT_ID = 'c-brother';
+export const BROTHER_CHAT_ID = 'ch-brother';
+export const BROTHER_NAME = 'اخوي';
+export const BROTHER_PHONE = '٠٥٥٠٠٠٠٠٠٠';
+export const BROTHER_COLOR = '#5B6EF5';
+export const WA_CALLS_KEY = 'wa-calls';
+
+export interface WARecentCall {
+  id: string;
+  contactId: string;
+  type: 'in' | 'out' | 'missed';
+  timestamp: number;
+  duration?: number;
+  endedAt?: number;
+  simulated?: boolean;
+}
 const WA_DEEPLINK_KEY = 'wa-sim-deeplink';
 
 export const PROJECT_MEMBERS: WAGroupMember[] = [
@@ -66,6 +82,7 @@ export const SAMPLE_CONTACTS: WAContact[] = [
   { id: 'c4', name: 'نورة القحطاني', color: '#007AFF', about: 'متاحة', kind: 'person' },
   { id: 'c5', name: 'خالد المطيري', color: '#5856D6', about: 'مشغول', kind: 'person' },
   { id: 'c6', name: 'سارة الحربي', color: '#FF2D55', about: 'متاحة', kind: 'person' },
+  { id: BROTHER_CONTACT_ID, name: BROTHER_NAME, color: BROTHER_COLOR, about: 'أخوك اللي يستعير الشاحن وينسى يرجعه', kind: 'person' },
   { id: DOCTOR_CONTACT_ID, name: 'الدكتورة سارة', color: '#FF2D55', about: 'مشرفة المشروع', kind: 'person' },
   ...PROJECT_MEMBERS.filter((member) => member.id !== 'me').map((member) => ({
     ...member, kind: 'person' as const, about: 'زميلة المشروع',
@@ -136,7 +153,39 @@ const groupSeedMessages: WAMessage[] = PROJECT_CONVERSATION.map(([senderId, text
   type: 'text',
 }));
 
+const BROTHER_CONVERSATION: Array<['me' | 'them', string]> = [
+  ['them', 'منار وين شاحني؟ لا تقولين ما شفتيه وهو جنبك 😂'],
+  ['me', 'هذا شاحني يا نشبة، شاحنك عند الكنبة'],
+  ['them', 'طيب ليه شاحني دايم يلعب غميضة؟'],
+  ['me', 'لأنك ترميه بأي مكان وبعدين تحقق معي'],
+  ['them', 'خلاص لقيته، نسيت إني حاطه بالمطبخ ههههه'],
+  ['me', 'بالمطبخ؟ كنت تشحن الساندويتش؟'],
+  ['them', 'لا تضحكين، جيبي لي موية وأنتِ جاية'],
+  ['me', 'قم جيبها، المطبخ جنبك'],
+  ['them', 'بس أنتِ أسرع، اعتبريها تدريب للمشي'],
+  ['me', 'اعتبر سكوتي رفض رسمي للطلب'],
+  ['them', 'طيب وش تبين من البقالة؟ بطلع بعد شوي'],
+  ['me', 'عصير وشي حلو، ولا تأكل نصه بالطريق'],
+  ['them', 'هذا اختبار جودة مو أكل 😂'],
+  ['me', 'كل مرة تختبر الجودة لين يخلص الكيس'],
+  ['them', 'بجيب لك كيس لحالك، بس اختاري بسرعة'],
+  ['me', 'شوكولاتة، وإذا قلت بسرعة مرة ثانية أغير رأيي'],
+  ['them', 'تم يا مديرة، والريموت وين اختفى؟'],
+  ['me', 'تحت المخدة اللي أنت جالس عليها'],
+  ['them', 'والله إنك تعرفين كل شي بالبيت ههههه'],
+  ['me', 'وأنت تعرف تسأل عن كل شي بالبيت'],
+];
+
+const brotherSeedMessages: WAMessage[] = BROTHER_CONVERSATION.map(([sender, text], index) => ({
+  id: `brother-seed-${index + 1}`, text, sender,
+  senderId: sender === 'me' ? 'me' : BROTHER_CONTACT_ID,
+  senderName: sender === 'me' ? 'منار' : BROTHER_NAME,
+  timestamp: seedTime - (BROTHER_CONVERSATION.length - index) * 120000,
+  type: 'text',
+}));
+
 export const SAMPLE_CHATS: WAChat[] = [
+  { id: BROTHER_CHAT_ID, contactId: BROTHER_CONTACT_ID, name: BROTHER_NAME, unread: 0, messages: brotherSeedMessages },
   { id: 'ch1', contactId: 'c1', unread: 2, messages: [
     sampleMessage('m1', 'السلام عليكم أحمد', 'me', 5 * HOUR),
     sampleMessage('m2', 'وعليكم السلام، كيف حالك؟', 'them', 5 * HOUR - 60000),
@@ -200,6 +249,7 @@ const NORMAL_MESSAGES: Record<string, string[]> = {
   'c-noura': ['خلصت مقدمة العرض، أرسلها لك؟', 'كيفك مع المشروع اليوم؟', 'نراجع الشرح سوا بعد المحاضرة؟'],
   'c-joud': ['لقيت ملاحظة بسيطة في التنقل، أشرحها لك بعد شوي', 'جربت حفظ الملاحظات واشتغل', 'منار لا تنسين تاخذين بريك'],
   'c-lina': ['أرسلت لك اقتراح الخلفية', 'الخط العربي صار أوضح، شوفيه', 'وش رأيك بالألوان الجديدة؟'],
+  [BROTHER_CONTACT_ID]: ['طيب يا منار لا تسوين نفسك مشغولة عن أخوك ههههه', 'لقيت الشاحن، بس الحين أدور السماعة 😂', 'إذا رحتي المطبخ ناديني، لا تنسين نصيبي', 'خلاص خلاص ما بنشب، بس سؤال أخير: وين الريموت؟', 'بجيب لك شي حلو من البقالة، اختاري قبل لا أوصل'],
 };
 
 const GROUP_INCOMING: Array<[string, string]> = [
@@ -296,7 +346,9 @@ export function ensureWhatsAppStore(): { chats: WAChat[]; contacts: WAContact[] 
       const canonicalId = /^(?:نينجا|ninja)$/i.test(contact.name.trim()) || contact.kind === 'ninja'
         ? NINJA_CONTACT_ID
         : /مشروع.*(?:دكتور|دكتور[هة]).*سار[ةه]/.test(contact.name) || contact.id === PROJECT_CONTACT_ID
-          ? PROJECT_CONTACT_ID : null;
+          ? PROJECT_CONTACT_ID
+          : /^(?:اخوي|أخوي|أخي)$/.test(contact.name.trim()) || contact.id === BROTHER_CONTACT_ID
+            ? BROTHER_CONTACT_ID : null;
       if (canonicalId) { aliases.set(contact.id, canonicalId); return false; }
       return true;
     });
@@ -312,7 +364,8 @@ export function ensureWhatsAppStore(): { chats: WAChat[]; contacts: WAContact[] 
 
     let chats: WAChat[] = Array.isArray(rawChats) ? rawChats.filter(isRecord).map((rawChat, chatIndex) => {
       const originalContactId = typeof rawChat.contactId === 'string' ? rawChat.contactId : `legacy-contact-${chatIndex}`;
-      const contactId = aliases.get(originalContactId) ?? originalContactId;
+      const contactId = rawChat.id === BROTHER_CHAT_ID || (typeof rawChat.name === 'string' && /^(?:اخوي|أخوي|أخي)$/.test(rawChat.name.trim()))
+        ? BROTHER_CONTACT_ID : aliases.get(originalContactId) ?? originalContactId;
       const isProject = contactId === PROJECT_CONTACT_ID || rawChat.name === PROJECT_GROUP_NAME;
       const messages: WAMessage[] = Array.isArray(rawChat.messages) ? rawChat.messages.filter(isRecord).map((message, index) => ({
         ...message,
@@ -321,7 +374,7 @@ export function ensureWhatsAppStore(): { chats: WAChat[]; contacts: WAContact[] 
         sender: message.sender === 'me' ? 'me' : 'them',
         timestamp: typeof message.timestamp === 'number' && Number.isFinite(message.timestamp) ? message.timestamp : seedTime,
       } as WAMessage)) : [];
-      const filtered = contactId === NINJA_CONTACT_ID ? messages : messages.filter((message) => !isOldPromotion(message));
+      const filtered = contactId === NINJA_CONTACT_ID || contactId === BROTHER_CONTACT_ID ? messages : messages.filter((message) => !isOldPromotion(message));
       const unread = typeof rawChat.unread === 'number' && Number.isFinite(rawChat.unread) ? Math.max(0, Math.floor(rawChat.unread)) : 0;
       return {
         ...rawChat,
@@ -349,8 +402,21 @@ export function ensureWhatsAppStore(): { chats: WAChat[]; contacts: WAContact[] 
     };
     mergeDedicated(NINJA_CONTACT_ID);
     mergeDedicated(PROJECT_CONTACT_ID);
+    mergeDedicated(BROTHER_CONTACT_ID);
     for (const sample of SAMPLE_CHATS) {
       if (!chats.some((chat) => chat.contactId === sample.contactId)) chats.push(cloneSamples(sample));
+    }
+    const brother = chats.find((chat) => chat.contactId === BROTHER_CONTACT_ID)!;
+    brother.name = BROTHER_NAME;
+    brother.isGroup = false;
+    const missingBrotherSeeds = brotherSeedMessages.filter((seed) => !brother.messages.some((message) => message.id === seed.id));
+    if (missingBrotherSeeds.length) {
+      // Put the added history before any existing conversation; keep every stored message.
+      const earliest = Math.min(seedTime, ...brother.messages.map((message) => message.timestamp));
+      const history = cloneSamples(missingBrotherSeeds).map((message, index) => ({
+        ...message, timestamp: earliest - (missingBrotherSeeds.length - index) * 120000,
+      }));
+      brother.messages = [...history, ...brother.messages].sort((a, b) => a.timestamp - b.timestamp);
     }
     const project = chats.find((chat) => chat.contactId === PROJECT_CONTACT_ID)!;
     project.isGroup = true;
@@ -452,7 +518,12 @@ function deliverIntoChat(targetChatId?: string, replyTo?: string): IncomingWhats
         : chooseMessage(NINJA_MESSAGES, chat.messages[chat.messages.length - 1]?.text);
     } else {
       const pool = NORMAL_MESSAGES[chat.contactId] ?? ['وصلتني رسالتك، الله يعطيك العافية', 'تمام، نتكلم بعد شوي', 'كيف يومك؟'];
-      if (replyTo?.includes('شكرا') || replyTo?.includes('شكراً')) text = 'العفو يا منار، ما سوينا إلا الواجب';
+      if (chat.contactId === BROTHER_CONTACT_ID) {
+        if (replyTo && /شكرا|شكراً/.test(replyTo)) text = 'العفو يا أختي، بس لا تنسين ترجعين شاحني ههههه';
+        else if (replyTo?.includes('السلام')) text = 'وعليكم السلام يا أختي، وش عندك اليوم؟';
+        else text = chooseMessage(pool, chat.messages[chat.messages.length - 1]?.text);
+      }
+      else if (replyTo?.includes('شكرا') || replyTo?.includes('شكراً')) text = 'العفو يا منار، ما سوينا إلا الواجب';
       else if (replyTo?.includes('السلام')) text = 'وعليكم السلام يا منار، كيفك؟';
       else text = chooseMessage(pool, chat.messages[chat.messages.length - 1]?.text);
     }
@@ -488,4 +559,37 @@ export function deliverWhatsAppMessage(targetChatId?: string): IncomingWhatsApp 
 
 export function deliverWhatsAppReply(chatId: string, text: string): IncomingWhatsApp | null {
   return deliverIntoChat(chatId, text);
+}
+
+/** Reserved for the two browser-only calls. No generic quota or random message pool. */
+export function deliverBrotherCallMessage(eventId: string, text: 'ردي بكلمك' | 'ردي ياخيييي', timestamp: number): IncomingWhatsApp | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const { chats } = ensureWhatsAppStore();
+    const chat = chats.find((item) => item.contactId === BROTHER_CONTACT_ID);
+    if (!chat) return null;
+    const messageId = `${eventId}-message`;
+    const existing = chat.messages.find((message) => message.id === messageId);
+    const next = existing ? chats : chats.map((item) => item.id === chat.id ? {
+      ...item, unread: item.unread + 1,
+      messages: [...item.messages, {
+        id: messageId, text, timestamp, sender: 'them' as const,
+        senderId: BROTHER_CONTACT_ID, senderName: BROTHER_NAME, type: 'text' as const,
+      }],
+    } : item);
+    // Throw/fail closed if persistence fails: callers must never notify a phantom message.
+    window.localStorage.setItem(WA_CHATS_KEY, JSON.stringify(next));
+    const result: IncomingWhatsApp = {
+      chatId: chat.id, contactId: BROTHER_CONTACT_ID, senderName: BROTHER_NAME,
+      title: BROTHER_NAME, text: existing?.text ?? text, messageId,
+      totalUnread: next.reduce((total, item) => total + item.unread, 0),
+    };
+    try { window.localStorage.setItem(WA_DEEPLINK_KEY, JSON.stringify({ ...result, ts: timestamp })); } catch { /* message committed */ }
+    if (!existing) {
+      window.dispatchEvent(new CustomEvent(WA_STORE_EVENT, { detail: { key: WA_CHATS_KEY } }));
+      window.dispatchEvent(new CustomEvent('wa-sim-message', { detail: result }));
+    }
+    result.totalUnread = readWhatsAppChats().reduce((total, item) => total + item.unread, 0);
+    return result;
+  } catch { return null; }
 }

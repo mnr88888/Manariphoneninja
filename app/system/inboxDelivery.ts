@@ -40,16 +40,35 @@ export const SOCIAL_KEYS: Record<SocialAppId, string> = {
 export const X_ACTIVITY_KEY = 'x-activity-v1';
 // Old body-only seeds described nonexistent posts. Do not manufacture a history of likes.
 export const X_ACTIVITY_SEED: XActivity[] = [];
+const X_CUSTOMERS = [
+  ['عمر السهلي', '#AF52DE'], ['مي العبدالله', '#007AFF'], ['راكان القحطاني', '#34C759'], ['شوق المطيري', '#FF9500'],
+  ['نجلاء الحربي', '#FF2D55'], ['بدر الشهراني', '#5856D6'], ['هيا الدوسري', '#00C7BE'], ['نايف الغامدي', '#FF6482'],
+  ['جنى العتيبي', '#5AC8FA'], ['وليد الزهراني', '#AF52DE'], ['شهد المالكي', '#007AFF'], ['سعد العنزي', '#34C759'],
+  ['غادة الشهري', '#FF9500'], ['إياد البلوي', '#FF2D55'], ['لولوة الرشيدي', '#5856D6'], ['فهد اليامي', '#00C7BE'],
+] as const;
+const INSTAGRAM_CUSTOMERS = [
+  ['ريم العتيبي', '#AF52DE'], ['سلمان الحربي', '#007AFF'], ['نوف القحطاني', '#34C759'],
+  ['مازن الغامدي', '#FF9500'], ['جود المطيري', '#FF2D55'], ['هند الشمري', '#5856D6'],
+  ['تركي الزهراني', '#00C7BE'], ['لينا السبيعي', '#FF6482'], ['عبدالله المالكي', '#5AC8FA'],
+  ['أروى الدوسري', '#AF52DE'], ['فيصل الشهري', '#007AFF'], ['دانة اليامي', '#34C759'],
+  ['مشعل العنزي', '#FF9500'], ['سارة العمري', '#FF2D55'], ['ياسر البلوي', '#5856D6'],
+  ['غلا الرشيدي', '#00C7BE'],
+] as const;
 function socialSeed(appId: SocialAppId): SocialThread[] {
-  return [
-    { id: `${appId}-zahra-ali`, name: 'زهراء علي', color: '#AF52DE', messages: [
-      { id: `${appId}-seed-1`, text: 'شفت عرض نينجا الجديد؟ شكله مناسب لسفرة رمضان.', sender: 'them', timestamp: Date.now() - 45 * 60000, read: true },
-      { id: `${appId}-seed-2`, text: 'أكيد، خلينا نشوفه بعد المحاضرة', sender: 'me', timestamp: Date.now() - 40 * 60000, read: true },
-    ] },
-    { id: `${appId}-zahra-zu`, name: 'زهراء زهير', color: '#007AFF', messages: [
-      { id: `${appId}-seed-3`, text: 'شفتي منشور Ninja عن التوصيل المجاني؟', sender: 'them', timestamp: Date.now() - 30 * 60000, read: true },
-    ] },
-  ];
+  if (appId === 'instagram') {
+    return INSTAGRAM_CUSTOMERS.map(([name, color], index) => ({
+      id: `${appId}-customer-${index + 1}`,
+      name,
+      color,
+      messages: [],
+    }));
+  }
+  return X_CUSTOMERS.map(([name, color], index) => ({
+    id: `${appId}-customer-${index + 1}`,
+    name,
+    color,
+    messages: index < 2 ? [{ id: `${appId}-seed-${index + 1}`, text: index === 0 ? 'هل يوصل طلب رمضان لحي الياسمين اليوم؟' : 'كيف أطلب صندوق السحور من نينجا؟', sender: 'them' as const, timestamp: Date.now() - (45 - index * 15) * 60000, read: true }] : [],
+  }));
 }
 export const SOCIAL_SEEDS: Record<SocialAppId, SocialThread[]> = { instagram: socialSeed('instagram'), x: socialSeed('x') };
 export const NINJA_INBOX_KEY = 'ninja-message-inbox-v2';
@@ -63,12 +82,14 @@ function normalizeSocialNames(appId: SocialAppId): void {
   const key = SOCIAL_KEYS[appId];
   const threads = readStore<SocialThread[] | null>(key, null);
   if (!Array.isArray(threads)) return;
-  const names = ['زهراء علي', 'زهراء زهير'];
+  const names = appId === 'instagram'
+    ? INSTAGRAM_CUSTOMERS.map(([name]) => name)
+    : X_CUSTOMERS.map(([name]) => name);
   const simulatorContent = /محاكي|المحاكي|المشروع|الإشعار|الكاميرا|الدكتورة|دكتوره/i;
   const normalized = threads.map((thread, index) => ({
     ...thread,
     name: names[index % names.length],
-    messages: thread.messages.filter((message) => !simulatorContent.test(message.text)),
+    messages: thread.messages.filter((message) => !simulatorContent.test(message.text) && !(appId === 'x' && message.sender === 'them' && /منشور|عرض|ثريد|إعادة نشر|حساب Ninja|كود|التوصيل السريع|المنتجات|عروض/.test(message.text))),
   }));
   if (JSON.stringify(normalized) !== JSON.stringify(threads)) writeStore(key, normalized);
 }
@@ -142,8 +163,8 @@ const EMAIL_POOL = [
 ];
 const SMS_POOL = ['أنا عند باب المكتبة، وينك؟', 'المحاضرة صارت في القاعة ٢٠٤، لا تروحين القديمة', 'خلصت المسودة، نراجعها بعد العصر؟', 'إذا وصلتي البيت طمنيني', 'اجتماعنا الساعة ٥، جيبي ملاحظاتك معك', 'وصلني الملف، شكرًا على الترتيب', 'لا تنسين شاحن الآيفون اليوم', 'خلصت من القهوة، أجيب لك معاي؟', 'غيروا موعد الاجتماع للساعة ٦', 'أنا بالطريق وبوصل بعد عشر دقائق', 'شفت الملاحظة الجديدة في الملف؟', 'بكرة نراجع العرض مع بعض', 'الجو حلو، نتمشى بعد المحاضرة؟', 'أرسلت لك صورة المكان على الواتساب', 'تمام، خلينا نبدأ من الشاشة الرئيسية', 'وصلت البيت، يعطيك العافية'];
 const SOCIAL_POOL: Record<SocialAppId, string[]> = {
-  instagram: ['شفت الستوري حقك، شكل القهوة يفوز!', 'عرض نينجا الجديد على التمور شكله لذيذ.', 'شفتي وصفة السمبوسة اللي نزلها حساب Ninja؟', 'توصيل نينجا اليوم كان سريع مرة.', 'صورت لك سفرة رمضان، بس لا تعتمدين صورة كوب القهوة بالغلط.', 'التمر والقهوة ثنائي ما يختلف عليه اثنين.', 'منشور الفوانيس عند Ninja جميل.', 'وش رأيك بعرض التوصيل المجاني؟', 'أرسلت لك رابط حملة رمضان.', 'القطايف شكلها يفتح النفس.', 'جربت أطلب مستلزمات السحور ووصلت بدري.', 'حساب Ninja نزل وصفة جديدة اليوم.', 'العروض الرمضانية هذا العام متنوعة.', 'باقي أجرب صندوق الضيافة.', 'أحس أجواء رمضان بدأت من منشورات Ninja.', 'إذا خلصنا نحتفل بقهوة وطلب حلو 😂'],
-  x: ['منشور Ninja عن سفرة الإفطار أخذ تفاعلاً كبيراً.', 'عرض التوصيل المجاني من Ninja مناسب للعزائم.', 'شفت ثريد Ninja عن تجهيزات رمضان؟', 'منشور التمور اليوم مرتب جداً.', 'إعادة نشر وصفة القطايف كانت فكرة موفقة.', 'حساب Ninja أعلن عن صندوق السحور.', 'الفوانيس في آخر منشور جميلة.', 'كود RAMADAN20 ظاهر في المنشور المثبت.', 'التوصيل السريع هو أكثر شيء يعجبني في Ninja.', 'منشور القهوة العربية انتشر بسرعة.', 'عرض الضيافة الرمضانية يستحق التجربة.', 'المنتجات الجديدة نزلت في بروفايل Ninja.', 'منشور المشروبات مناسب للأجواء الحارة.', 'عروض Ninja هذا الأسبوع واضحة ومباشرة.', 'منشور التمر حقق تفاعلاً ممتازاً.', 'البروفايل مرتب بعد تحديث منشورات رمضان.'],
+  instagram: ['هل أقدر أغيّر عنوان التوصيل بعد تأكيد الطلب؟', 'متى يوصل طلب البقالة لحي النرجس اليوم؟', 'هل عندكم خيارات خالية من السكر للحلى الرمضاني؟', 'أحتاج فاتورة ضريبية للطلب، من وين أطلعها؟', 'هل أقدر أطلب كيك مخصص وأحدد وقت التوصيل؟', 'وصلني منتج ناقص من الطلب، كيف أرفع بلاغ؟', 'هل يوجد حد أدنى للطلب أو رسوم توصيل لحي الملقا؟', 'أبغى أعرف مكونات صوص الوجبة قبل أطلبها.', 'هل أقدر أضيف ملاحظة للسائق عند بوابة العمارة؟', 'متى يتوفر صندوق السحور مرة ثانية؟', 'الطلب تأخر، هل تقدرون تتأكدون من حالة السائق؟', 'هل يمكن استبدال منتج وصلني بحجم مختلف؟', 'أبحث عن وجبات فردية مناسبة للإفطار، وش ترشحون؟', 'هل العرض الرمضاني يشمل الدفع عند الاستلام؟', 'كيف أستخدم رصيد المحفظة مع كود الخصم؟', 'أحتاج مساعدة في اختيار ضيافة تكفي عشرة أشخاص.'],
+  x: ['هل يوصل طلب رمضان لحي الياسمين اليوم؟', 'كيف أطلب صندوق السحور من نينجا؟', 'هل أقدر أحدد وقت التوصيل قبل أذان المغرب؟', 'أحتاج أعرف مكونات سلة الإفطار قبل الطلب.', 'هل يوجد توصيل مجاني للطلبات الرمضانية؟', 'وصلني طلب ناقص، كيف أرفع بلاغ؟', 'هل أقدر أضيف ملاحظة للسائق عند بوابة البيت؟', 'متى يتوفر منتج التمر المحشو مرة ثانية؟', 'أحتاج ضيافة تكفي عشرة أشخاص، وش ترشحون؟', 'هل العرض الرمضاني يشمل الدفع عند الاستلام؟', 'كيف أستخدم كود الخصم مع رصيد المحفظة؟', 'هل أقدر أغير العنوان بعد تأكيد الطلب؟', 'الطلب تأخر قبل الإفطار، ممكن تتأكدون من حالته؟', 'هل توجد خيارات خالية من السكر للحلى الرمضاني؟', 'أحتاج فاتورة ضريبية للطلب، من وين أطلعها؟', 'هل يمكن استبدال منتج وصلني بحجم مختلف؟'],
 };
 const X_LIKE_ACTORS = ['زهراء علي', 'زهراء زهير', 'ريم الدوسري', 'فاطمة ماجد', 'نورة القحطاني', 'أحمد العتيبي', 'سارة الحربي', 'محمد سالم', 'جود صالح', 'لينا أحمد', 'هند يوسف', 'دانة فهد', 'عبدالله الشمري', 'خالد المطيري', 'ماجد ناصر', 'بدر العبدالله'];
 function nextIndex(key: string, length: number): number {
@@ -208,11 +229,21 @@ export function deliverInboxMessage(appId: DeliveredInboxMessage['appId']): Deli
     }
     return null;
   }
-  const index = nextIndex(appId, SOCIAL_POOL[appId].length);
+  let index = nextIndex(appId, SOCIAL_POOL[appId].length);
   const seeds = SOCIAL_SEEDS[appId];
   const seed = seeds[index % seeds.length];
   const threads = readStore<SocialThread[]>(SOCIAL_KEYS[appId], seeds);
   const thread = threads.find((t) => t.id === seed.id) ?? { ...seed, messages: [] };
+  if (appId === 'instagram') {
+    const used = new Set(threads.flatMap((candidate) => candidate.messages.map((message) => message.text)));
+    for (let offset = 0; offset < SOCIAL_POOL.instagram.length; offset += 1) {
+      const candidate = (index + offset) % SOCIAL_POOL.instagram.length;
+      if (!used.has(SOCIAL_POOL.instagram[candidate])) {
+        index = candidate;
+        break;
+      }
+    }
+  }
   const text = SOCIAL_POOL[appId][index];
   const updated = { ...thread, messages: [...thread.messages, { id, text, sender: 'them' as const, timestamp, read: false }] };
   const next = [updated, ...threads.filter((t) => t.id !== thread.id)];
