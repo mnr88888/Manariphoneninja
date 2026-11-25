@@ -13,7 +13,7 @@ import NotificationCenter from './components/NotificationCenter';
 import LockScreen from './components/LockScreen';
 import DynamicIsland from './components/DynamicIsland';
 import NotificationBanner from './components/NotificationBanner';
-import { useWhatsAppSimulation } from './system/whatsappSimulation';
+import { useNotificationSimulation } from './system/notificationSimulation';
 import HomeIndicator from './components/HomeIndicator';
 
 type Overlay = 'none' | 'control' | 'notifications';
@@ -23,7 +23,7 @@ function PhoneShell() {
   const { locked, settings } = useSystem();
   const [overlay, setOverlay] = useState<Overlay>('none');
 
-  useWhatsAppSimulation();
+  useNotificationSimulation();
 
   // Continuous home-indicator drag: progress 0..1 while dragging up from the
   // home indicator area. The open app visually follows the finger.
