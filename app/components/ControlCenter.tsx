@@ -30,19 +30,21 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useSystem();
   const { openApp } = useOS();
 
-  const toggle = (key: 'wifi' | 'bluetooth' | 'airplaneMode' | 'mobileData' | 'focusMode' | 'rotationLock' | 'darkMode') =>
-    updateSettings({ [key]: !settings[key] });
+  const toggle = (key: 'wifi' | 'bluetooth' | 'airplaneMode' | 'mobileData' | 'focusMode' | 'rotationLock' | 'darkMode') => {
+    if (key === 'darkMode') updateSettings({ appearance: settings.darkMode ? 'light' : 'dark' });
+    else updateSettings({ [key]: !settings[key] });
+  };
 
   return (
     <div
-      className="switcher-fade absolute inset-0 z-[70] bg-black/60 backdrop-blur-2xl"
+      className="glass-overlay glass-overlay-dark switcher-fade absolute inset-0 z-[70]"
       onClick={onClose}
     >
-      <div className="flex h-full flex-col px-4 pt-14" onClick={(e) => e.stopPropagation()}>
+      <div className="no-scrollbar flex h-full flex-col overflow-y-auto px-4 pt-14" onClick={(e) => e.stopPropagation()}>
         {/* Top row: connectivity block + side column */}
         <div className="grid grid-cols-2 gap-3">
           {/* Connectivity module */}
-          <div className="flex flex-col items-center justify-center gap-4 rounded-[28px] bg-white/10 py-5">
+          <div className="flex flex-col items-center justify-center gap-4 rounded-[28px] liquid-glass-dark py-5">
             <button
               onClick={() => toggle('airplaneMode')}
               className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
@@ -100,7 +102,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
 
           {/* Side column: volume + dark mode / rotation lock */}
           <div className="flex flex-col gap-3">
-            <div className="flex flex-1 flex-col items-center justify-center rounded-[28px] bg-white/10 px-4 py-3 text-white">
+            <div className="flex flex-1 flex-col items-center justify-center rounded-[28px] liquid-glass-dark px-4 py-3 text-white">
               <Volume2 className="mb-1 h-5 w-5" />
               <span className="text-xs text-white/70">الصوت</span>
               <input
@@ -114,7 +116,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
               />
             </div>
 
-            <div className="flex items-center justify-around rounded-[28px] bg-white/10 py-3 text-white">
+            <div className="flex items-center justify-around rounded-[28px] liquid-glass-dark py-3 text-white">
               <button
                 onClick={() => toggle('darkMode')}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 active:scale-95"
@@ -136,7 +138,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Brightness + flashlight */}
-        <div className="mt-3 flex items-center gap-3 rounded-[28px] bg-white/10 px-5 py-4 text-white">
+        <div className="mt-3 flex items-center gap-3 rounded-[28px] liquid-glass-dark px-5 py-4 text-white">
           <Sun className="h-5 w-5 shrink-0" />
           <input
             type="range"
@@ -152,8 +154,8 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
         <div className="mt-3 grid grid-cols-4 gap-3">
           <button
             onClick={() => updateSettings({ flashlight: !settings.flashlight })}
-            className={`flex flex-col items-center justify-center gap-1 rounded-[20px] py-4 text-white active:scale-95 ${
-              settings.flashlight ? 'bg-white text-black' : 'bg-white/10'
+            className={`flex flex-col items-center justify-center gap-1 rounded-[24px] py-4 text-white active:scale-95 ${
+              settings.flashlight ? 'liquid-glass text-black' : 'liquid-glass-dark'
             }`}
           >
             <Flashlight className="h-5 w-5" />
@@ -164,7 +166,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
               openApp('calculator');
               onClose();
             }}
-            className="flex flex-col items-center justify-center gap-1 rounded-[20px] bg-white/10 py-4 text-white active:scale-95"
+            className="flex flex-col items-center justify-center gap-1 rounded-[24px] liquid-glass-dark py-4 text-white active:scale-95"
           >
             <Calculator className="h-5 w-5" />
             <span className="text-[10px]">الحاسبة</span>
@@ -174,7 +176,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
               openApp('camera');
               onClose();
             }}
-            className="flex flex-col items-center justify-center gap-1 rounded-[20px] bg-white/10 py-4 text-white active:scale-95"
+            className="flex flex-col items-center justify-center gap-1 rounded-[24px] liquid-glass-dark py-4 text-white active:scale-95"
           >
             <Camera className="h-5 w-5" />
             <span className="text-[10px]">الكاميرا</span>
@@ -184,7 +186,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
               openApp('clock');
               onClose();
             }}
-            className="flex flex-col items-center justify-center gap-1 rounded-[20px] bg-white/10 py-4 text-white active:scale-95"
+            className="flex flex-col items-center justify-center gap-1 rounded-[24px] liquid-glass-dark py-4 text-white active:scale-95"
           >
             <Timer className="h-5 w-5" />
             <span className="text-[10px]">المؤقت</span>
@@ -192,7 +194,7 @@ export default function ControlCenter({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Battery pill */}
-        <div className="mt-3 flex items-center gap-3 rounded-[28px] bg-white/10 px-5 py-4 text-white">
+        <div className="mt-3 flex items-center gap-3 rounded-[28px] liquid-glass-dark px-5 py-4 text-white">
           <Battery className="h-5 w-5" />
           <span className="text-sm font-semibold">البطارية</span>
           <span className="mr-auto text-sm font-bold">٨٧٪</span>

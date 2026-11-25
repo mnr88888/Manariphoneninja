@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSystem } from '../system/SystemContext';
 import { useOS } from '../OSContext';
 import { getApp } from '../apps/registry';
+import { phonePoint } from '../system/phoneGeometry';
 
 /** How long the banner stays on screen before sliding back up */
 const BANNER_MS = 4800;
@@ -73,10 +74,11 @@ export default function NotificationBanner() {
       key={`${banner.id}-${banner.timestamp}`}
       className={`absolute left-2.5 right-2.5 top-[46px] z-[65] ${leaving ? 'banner-out' : 'banner-in'}`}
       onTouchStart={(e) => {
-        startY.current = e.touches[0].clientY;
+        startY.current = phonePoint(e.touches[0].clientX, e.touches[0].clientY).y;
       }}
       onTouchEnd={(e) => {
-        if (startY.current != null && startY.current - e.changedTouches[0].clientY > 16) hide();
+        const end = e.changedTouches[0];
+        if (startY.current != null && startY.current - phonePoint(end.clientX, end.clientY).y > 16) hide();
         startY.current = null;
       }}
     >
@@ -84,12 +86,7 @@ export default function NotificationBanner() {
         data-notification-app={banner.appId}
         data-notification-id={banner.id}
         onClick={open}
-        className="flex w-full items-center gap-3 rounded-[26px] border border-white/70 px-3.5 py-3 text-right shadow-[0_10px_34px_rgba(0,0,0,0.18)] active:scale-[0.98]"
-        style={{
-          background: 'rgba(255,255,255,0.86)',
-          backdropFilter: 'blur(28px) saturate(1.6)',
-          WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
-        }}
+        className="liquid-glass flex w-full items-center gap-3 rounded-[26px] px-3.5 py-3 text-right active:scale-[0.98]"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-black/5">
           {app && (

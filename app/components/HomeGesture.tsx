@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useOS } from '../OSContext';
+import { phonePoint } from '../system/phoneGeometry';
 
 interface HomeGestureProps {
   onOpenControlCenter: () => void;
@@ -39,9 +40,13 @@ export default function HomeGesture({
 
   const onDown = useCallback(
     (x: number, y: number) => {
-      const distFromBottom = window.innerHeight - y;
+      const point = phonePoint(x, y);
+      if (!point.inside || document.querySelector('[data-lock-screen]')) return;
+      x = point.x;
+      y = point.y;
+      const distFromBottom = point.height - y;
       if (y <= TOP_ZONE) {
-        edge.current = x > window.innerWidth / 2 ? 'top-right' : 'top-left';
+        edge.current = x > point.width / 2 ? 'top-right' : 'top-left';
       } else if (distFromBottom <= BOTTOM_ZONE) {
         edge.current = 'bottom';
       } else {
@@ -65,6 +70,9 @@ export default function HomeGesture({
         dragging.current = false;
         return;
       }
+      const point = phonePoint(x, y);
+      x = point.x;
+      y = point.y;
       const dx = x - startX.current;
       const dy = y - startY.current; // positive = downward
       const elapsed = Date.now() - startTime.current;
@@ -129,7 +137,9 @@ export default function HomeGesture({
   );
 
   useEffect(() => {
+    const isStripGesture = (target: EventTarget | null) => target instanceof Element && !!target.closest('[data-home-gesture-strip]');
     const touchStart = (e: TouchEvent) => {
+      if (isStripGesture(e.target)) return;
       if (e.touches.length > 0) onDown(e.touches[0].clientX, e.touches[0].clientY);
     };
     const touchMove = (e: TouchEvent) => {
@@ -139,7 +149,9 @@ export default function HomeGesture({
       if (e.changedTouches.length > 0)
         onUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     };
-    const mouseDown = (e: MouseEvent) => onDown(e.clientX, e.clientY);
+    const mouseDown = (e: MouseEvent) => {
+      if (!isStripGesture(e.target)) onDown(e.clientX, e.clientY);
+    };
     const mouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
     const mouseUp = (e: MouseEvent) => onUp(e.clientX, e.clientY);
 

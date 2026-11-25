@@ -18,9 +18,8 @@ export default function StatusBar({ dark = false }: { dark?: boolean }) {
       const now = new Date();
       let h = now.getHours();
       const m = now.getMinutes();
-      const ampm = h >= 12 ? 'م' : 'ص';
       h = h % 12 || 12;
-      setTime(`${h}:${m.toString().padStart(2, '0')} ${ampm}`);
+      setTime(`${h}:${m.toString().padStart(2, '0')}`);
     };
     update();
     const id = setInterval(update, 1000);
@@ -55,7 +54,7 @@ export default function StatusBar({ dark = false }: { dark?: boolean }) {
     >
       {/* Left (RTL: time on the left visually) */}
       <div className="flex w-20 items-center">
-        <span className="text-[15px] font-semibold tabular-nums tracking-tight">
+        <span dir="ltr" className="whitespace-nowrap text-[15px] font-semibold tabular-nums tracking-tight">
           {time}
         </span>
       </div>

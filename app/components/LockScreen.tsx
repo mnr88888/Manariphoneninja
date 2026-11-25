@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSystem, wallpaperCss } from '../system/SystemContext';
 import { useOS } from '../OSContext';
 import { getApp } from '../apps/registry';
+import { phonePoint } from '../system/phoneGeometry';
 import { Lock, Flashlight, Camera, ChevronUp, X } from 'lucide-react';
 // The single PhoneFrame feed delivers actual messages for all six applications.
 const MAX_VISIBLE = 3;
@@ -24,6 +25,7 @@ export default function LockScreen() {
     setLocked,
     wallpaper,
     settings,
+    updateSettings,
     notifications,
     dismissNotification,
     openNotification,
@@ -34,7 +36,7 @@ export default function LockScreen() {
   const [time, setTime] = useState('');
   const [date, setDate] = useState('');
   const [battery, setBattery] = useState(87);
-  const [flashlightOn, setFlashlightOn] = useState(false);
+  const flashlightOn = settings.flashlight;
 
   const [dragY, setDragY] = useState(0);
   const startY = useRef<number | null>(null);
@@ -52,11 +54,10 @@ export default function LockScreen() {
       const h = now.getHours();
       const m = now.getMinutes();
 
-      const ampm = h >= 12 ? 'م' : 'ص';
       const h12 = h % 12 || 12;
 
       setTime(
-        `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
+        `${h12}:${m.toString().padStart(2, '0')}`
       );
 
       setDate(
@@ -110,13 +111,13 @@ export default function LockScreen() {
 
   const handleStart = useCallback((y: number) => {
     if (unlocking) return;
-    startY.current = y;
+    startY.current = phonePoint(0, y).y;
   }, [unlocking]);
 
   const handleMove = useCallback((y: number) => {
     if (startY.current === null) return;
 
-    const delta = startY.current - y;
+    const delta = startY.current - phonePoint(0, y).y;
 
     if (delta > 0) {
       setDragY(Math.min(delta, 320));
@@ -166,7 +167,6 @@ export default function LockScreen() {
             ? 'transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.3s'
             : 'none',
         opacity: unlocking ? 0 : 1,
-        filter: `brightness(${settings.brightness}%)`,
         touchAction: 'none',
       }}
       onTouchStart={e => handleStart(e.touches[0].clientY)}
@@ -191,14 +191,14 @@ export default function LockScreen() {
       <div className="absolute inset-0 bg-white/10" />
 
       {/* Lock icon */}
-      <div className="z-10 mt-14 flex items-center justify-center">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 backdrop-blur-xl">
+      <div className="lock-top z-10 mt-14 shrink-0 flex items-center justify-center">
+        <div className="liquid-glass flex h-9 w-9 items-center justify-center rounded-full">
           <Lock className="h-4 w-4 text-black/75" />
         </div>
       </div>
 
       {/* Date and clock */}
-      <div className="z-10 mt-5 flex flex-col items-center">
+      <div className="lock-date-clock z-10 mt-5 shrink-0 flex flex-col items-center">
         <p
           className="text-[15px] font-semibold text-black/75"
           style={{ textShadow: '0 1px 8px rgba(255,255,255,0.4)' }}
@@ -207,7 +207,9 @@ export default function LockScreen() {
         </p>
 
         <h1
-          className="mt-1 text-[88px] font-light leading-none tracking-tight text-black/80 tabular-nums"
+          dir="ltr"
+          data-lock-clock
+          className="lock-clock mt-1 font-light leading-none tracking-tight text-black/80 tabular-nums"
           style={{
             textShadow: '0 2px 18px rgba(255,255,255,0.35)',
           }}
@@ -227,7 +229,7 @@ export default function LockScreen() {
               key={n.id + '-' + n.timestamp}
               className={isLeaving ? 'lock-notif-out' : 'lock-notif-in'}
             >
-              <div className="flex items-start gap-3 rounded-[22px] border border-white/80 bg-white/85 p-3.5 shadow-[0_3px_18px_rgba(0,0,0,0.08)] backdrop-blur-2xl">
+              <div className="liquid-glass flex items-start gap-3 rounded-[24px] p-3.5">
                 <button
                   data-notification-app={n.appId}
                   data-notification-id={n.id}
@@ -281,7 +283,7 @@ export default function LockScreen() {
 
         {hiddenCount > 0 && (
           <div className="flex justify-center">
-            <span className="rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-[11px] font-semibold text-black/70 backdrop-blur-xl">
+            <span className="liquid-glass rounded-full px-4 py-1.5 text-[11px] font-semibold text-black/70">
               +{toAr(hiddenCount)} {hiddenCount === 1 ? 'إشعار إضافي' : 'إشعارات إضافية'}
             </span>
           </div>
@@ -289,16 +291,17 @@ export default function LockScreen() {
       </div>
 
       {/* Bottom shortcuts */}
-      <div className="z-10 w-full px-8 pb-10">
-        <div className="mb-10 flex items-center justify-between">
+      <div className="lock-shortcuts z-10 w-full shrink-0 px-8 pb-6">
+        <div className="lock-shortcuts-row mb-8 flex items-center justify-between">
 
           {/* Flashlight */}
           <button
-            onClick={() => setFlashlightOn(f => !f)}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/70 shadow-sm backdrop-blur-xl transition active:scale-90 ${
+            onClick={() => updateSettings({ flashlight: !flashlightOn })}
+            data-active={flashlightOn}
+            className={`liquid-glass flex h-12 w-12 items-center justify-center rounded-full transition active:scale-90 ${
               flashlightOn
-                ? 'bg-black text-white'
-                : 'bg-white/75 text-black'
+                ? 'text-black'
+                : 'text-black/80'
             }`}
             aria-label="المصباح"
           >
@@ -315,8 +318,8 @@ export default function LockScreen() {
 
           {/* Camera */}
           <button
-            onClick={unlock}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-white/75 text-black shadow-sm backdrop-blur-xl transition active:scale-90"
+            onClick={() => { openApp('camera'); unlock(); }}
+            className="liquid-glass flex h-12 w-12 items-center justify-center rounded-full text-black transition active:scale-90"
             aria-label="الكاميرا"
           >
             <Camera className="h-5 w-5" />

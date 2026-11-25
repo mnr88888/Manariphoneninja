@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useOS } from '../OSContext';
+import { phonePoint } from '../system/phoneGeometry';
 
 interface HomeIndicatorProps {
   onDragProgress: (progress: number, mode: 'home' | 'switcher') => void;
@@ -29,7 +30,7 @@ export default function HomeIndicator({ onDragProgress, onDragEnd }: HomeIndicat
   const handleDown = useCallback(
     (y: number) => {
       if (screenMode !== 'app' && screenMode !== 'home') return;
-      startY.current = y;
+      startY.current = phonePoint(0, y).y;
       startTime.current = Date.now();
     },
     [screenMode]
@@ -38,7 +39,7 @@ export default function HomeIndicator({ onDragProgress, onDragEnd }: HomeIndicat
   const handleMove = useCallback(
     (y: number) => {
       if (startY.current == null) return;
-      const dy = y - startY.current;
+      const dy = phonePoint(0, y).y - startY.current;
       if (dy >= 0) {
         onDragProgress(0, 'home');
         return;
@@ -53,7 +54,7 @@ export default function HomeIndicator({ onDragProgress, onDragEnd }: HomeIndicat
   const handleUp = useCallback(
     (y: number) => {
       if (startY.current == null) return;
-      const dy = y - startY.current;
+      const dy = phonePoint(0, y).y - startY.current;
       const elapsed = Date.now() - startTime.current;
       startY.current = null;
       if (dy >= 0) {
@@ -71,18 +72,25 @@ export default function HomeIndicator({ onDragProgress, onDragEnd }: HomeIndicat
 
   return (
     <div
+      data-home-gesture-strip
       className="absolute bottom-0 left-0 right-0 z-[70] flex h-6 cursor-grab items-end justify-center pb-1.5 active:cursor-grabbing"
-      onMouseDown={(e) => handleDown(e.clientY)}
-      onMouseMove={(e) => startY.current != null && handleMove(e.clientY)}
-      onMouseUp={(e) => handleUp(e.clientY)}
-      onMouseLeave={(e) => {
-        if (startY.current != null) handleUp(e.clientY);
+      onPointerDown={(e) => {
+        if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        handleDown(e.clientY);
       }}
-      onTouchStart={(e) => handleDown(e.touches[0].clientY)}
-      onTouchMove={(e) => handleMove(e.touches[0].clientY)}
-      onTouchEnd={(e) => handleUp(e.changedTouches[0].clientY)}
+      onPointerMove={(e) => startY.current != null && handleMove(e.clientY)}
+      onPointerUp={(e) => {
+        handleUp(e.clientY);
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
+      onPointerCancel={() => {
+        startY.current = null;
+        onDragEnd(0, 'home');
+      }}
       role="button"
       aria-label="شريط الصفحة الرئيسية"
+      style={{ touchAction: 'none' }}
     >
       <div
         className="rounded-full"

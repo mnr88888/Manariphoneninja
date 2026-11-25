@@ -4,6 +4,7 @@
 import { useOS } from '../OSContext';
 import { getApp } from '../apps/registry';
 import { useRef, useState } from 'react';
+import { phonePoint } from '../system/phoneGeometry';
 
 function AppCard({
   appId,
@@ -36,7 +37,7 @@ function AppCard({
     e.currentTarget.setPointerCapture(e.pointerId);
 
     pointerId.current = e.pointerId;
-    startY.current = e.clientY;
+    startY.current = phonePoint(e.clientX, e.clientY).y;
     currentY.current = 0;
 
     setDragging(true);
@@ -47,7 +48,7 @@ function AppCard({
   ) => {
     if (!dragging || pointerId.current !== e.pointerId) return;
 
-    const distance = e.clientY - startY.current;
+    const distance = phonePoint(e.clientX, e.clientY).y - startY.current;
 
     currentY.current = distance;
 
@@ -63,7 +64,7 @@ function AppCard({
 
     if (currentY.current < -110) {
       setRemoving(true);
-      setDragY(-window.innerHeight);
+      setDragY(-phonePoint(0, 0).height);
 
       setTimeout(() => {
         onKill();
@@ -134,7 +135,7 @@ function AppCard({
           setRemoving(true);
           setTimeout(onKill, 220);
         }}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-white active:scale-90"
+        className="liquid-glass-dark flex h-7 w-7 items-center justify-center rounded-full text-white active:scale-90"
         aria-label={`إغلاق ${app.name}`}
       >
         <span className="text-lg leading-none">−</span>
@@ -154,7 +155,7 @@ export default function AppSwitcher() {
 
   return (
     <div
-      className="switcher-fade absolute inset-0 z-40 flex flex-col bg-black/90 backdrop-blur-xl"
+      className="glass-overlay glass-overlay-dark switcher-fade absolute inset-0 z-40 flex flex-col"
       onClick={closeSwitcher}
     >
       <div className="h-12 shrink-0" />

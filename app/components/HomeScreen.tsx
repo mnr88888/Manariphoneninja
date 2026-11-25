@@ -31,6 +31,7 @@ export default function HomeScreen() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Swipe state
+  const pagesRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const [dragX, setDragX] = useState(0);
@@ -109,7 +110,7 @@ export default function HomeScreen() {
   // reveals the next page and swiping left goes forward. Inside each page the
   // grid is RTL so Arabic app order (first app top-right) is preserved.
   const baseTranslate = -(page * 100); // percent
-  const dragPct = dragging ? (dragX / 390) * 100 : 0;
+  const dragPct = dragging ? (dragX / (pagesRef.current?.getBoundingClientRect().width || 390)) * 100 : 0;
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-black">
@@ -139,7 +140,8 @@ export default function HomeScreen() {
 
       {/* App pages */}
       <div
-        className="relative flex-1 touch-pan-y overflow-hidden"
+        ref={pagesRef}
+        className="relative min-h-0 flex-1 touch-pan-y overflow-hidden"
         onTouchStart={(e) => onTouchStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => onTouchMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={onTouchEnd}
@@ -158,7 +160,7 @@ export default function HomeScreen() {
         >
           {homePages.map((pageApps, pi) => (
             <div key={pi} dir="rtl" className="h-full w-full shrink-0 overflow-hidden px-6 pb-2 pt-14">
-              <div className="grid grid-cols-4 gap-x-4 gap-y-4">
+              <div className="home-app-grid grid grid-cols-4 gap-x-4 gap-y-4">
                 {pageApps.map((appId, idx) => {
                   const app = getApp(appId);
                   if (!app) return null;
@@ -212,15 +214,7 @@ export default function HomeScreen() {
       {/* Dock — fixed across all pages, Liquid Glass */}
       <div className="relative z-10 px-4 pb-3">
         <div
-          className="rounded-[30px] border border-white/20 p-3"
-          style={{
-            background:
-              'linear-gradient(150deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.14) 100%)',
-            backdropFilter: 'blur(28px) saturate(1.6)',
-            WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
-            boxShadow:
-              '0 10px 34px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(255,255,255,0.08)',
-          }}
+          className="liquid-glass-dark rounded-[32px] p-3"
         >
           <div className="flex items-end justify-around gap-2">
             {dockApps.map((app) => {
@@ -246,7 +240,7 @@ export default function HomeScreen() {
 
       {/* Restore sheet */}
       {editMode && removedApps.length > 0 && (
-        <div className="absolute bottom-24 right-4 z-30 rounded-[20px] bg-white/95 p-3 shadow-2xl backdrop-blur-xl">
+        <div className="liquid-glass absolute bottom-24 right-4 z-30 rounded-[24px] p-3">
           <p className="mb-2 text-xs font-semibold text-black">تطبيقات محذوفة</p>
           <div className="flex flex-wrap gap-2">
             {removedApps.map((id) => {

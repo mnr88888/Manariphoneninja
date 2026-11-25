@@ -33,7 +33,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
 
   return (
     <div
-      className="switcher-fade absolute inset-0 z-[70] bg-white/60 backdrop-blur-2xl"
+      className="glass-overlay switcher-fade absolute inset-0 z-[70]"
       onClick={onClose}
     >
       <div
@@ -46,7 +46,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
           {visible.length > 0 && (
             <button
               onClick={clearNotifications}
-              className="flex items-center gap-1 rounded-full bg-black/10 px-3 py-1 text-xs text-black/80 active:scale-95"
+              className="liquid-glass flex items-center gap-1 rounded-full px-3 py-1 text-xs text-black/80 active:scale-95"
             >
               <Trash2 className="h-3 w-3" />
               مسح الكل
@@ -55,7 +55,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
         </div>
 
         {/* Notifications list */}
-        <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6">
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           {visible.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-black/40">
               <BellOff className="h-10 w-10" />
@@ -68,7 +68,7 @@ export default function NotificationCenter({ onClose }: { onClose: () => void })
                 return (
                   <div
                     key={n.id}
-                    className="flex w-full items-stretch gap-2 rounded-[20px] bg-white/85 p-3 shadow-sm text-right transition active:scale-[0.98]"
+                    className="liquid-glass flex w-full items-stretch gap-2 rounded-[24px] p-3 text-right transition active:scale-[0.98]"
                   >
                     <button
                       onClick={() => {

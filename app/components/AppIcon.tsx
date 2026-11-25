@@ -39,12 +39,12 @@ export default function AppIcon({
   return (
     <button
       onClick={handlePress}
-      className="flex flex-col items-center gap-1.5 focus:outline-none"
+      className="flex w-full min-w-0 flex-col items-center gap-1.5 focus:outline-none"
       aria-label={app.name}
     >
       <div className="relative">
       <div
-        className={`relative flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[14px] shadow-lg transition-transform duration-150 ${
+        className={`home-icon-art relative flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[14px] shadow-lg transition-transform duration-150 ${
           pressed ? 'icon-press scale-90' : 'scale-100'
         }`}
         style={{
@@ -93,7 +93,7 @@ export default function AppIcon({
       )}
       </div>
       {showLabel && (
-        <span className="text-[11px] font-medium text-white drop-shadow-md">
+        <span className="max-w-full truncate text-[11px] font-medium text-white drop-shadow-md">
           {app.name}
         </span>
       )}
