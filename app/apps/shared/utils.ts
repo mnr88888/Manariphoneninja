@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { readStore, writeStore, STORE_CHANGE_EVENT } from '../../system/storage';
 
 /**
  * Persistent state hook backed by localStorage.
@@ -11,47 +12,38 @@ export function usePersistentState<T>(
   initialValue: T
 ): [T, (value: T | ((prev: T) => T)) => void] {
   const [state, setState] = useState<T>(initialValue);
-  const initialized = useRef(false);
+  const stateRef = useRef(state);
+  const initialRef = useRef(initialValue);
+  stateRef.current = state;
 
-  // Load from localStorage on mount
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw != null) {
-        setState(JSON.parse(raw) as T);
-      }
-    } catch {
-      // ignore parse errors
-    }
-    // Enable saving only AFTER the loaded value has been applied. Saving on the
-    // very first pass (or React StrictMode's second pass) would overwrite the
-    // stored data - e.g. a newly delivered WhatsApp message - with initialValue.
-    initialized.current = false;
-    const t = setTimeout(() => {
-      initialized.current = true;
-    }, 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Never save a stale React snapshot over a message delivered by another app.
+    const value = readStore(key, initialRef.current);
+    stateRef.current = value;
+    setState(value);
+    if (localStorage.getItem(key) === null) writeStore(key, value);
+    const reload = (event: Event) => {
+      const changedKey = event instanceof StorageEvent ? event.key : (event as CustomEvent<{key: string}>).detail?.key;
+      if (changedKey !== key && changedKey !== null) return;
+      const next = readStore(key, initialRef.current);
+      stateRef.current = next;
+      setState(next);
+    };
+    window.addEventListener(STORE_CHANGE_EVENT, reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener(STORE_CHANGE_EVENT, reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, [key]);
 
-  // Save to localStorage on change
-  useEffect(() => {
-    if (!initialized.current) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(state));
-    } catch {
-      // ignore quota errors
-    }
-  }, [key, state]);
-
-  const update = useCallback(
-    (value: T | ((prev: T) => T)) => {
-      setState((prev) =>
-        typeof value === 'function' ? (value as (p: T) => T)(prev) : value
-      );
-    },
-    []
-  );
+  const update = useCallback((value: T | ((prev: T) => T)) => {
+    const current = readStore(key, stateRef.current);
+    const next = typeof value === 'function' ? (value as (p: T) => T)(current) : value;
+    stateRef.current = next;
+    writeStore(key, next);
+    setState(next);
+  }, [key]);
 
   return [state, update];
 }
