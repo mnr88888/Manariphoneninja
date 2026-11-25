@@ -8,16 +8,47 @@ import { readStore, writeStore, STORE_CHANGE_EVENT } from './storage';
 
 export type SimulatedAppId = 'whatsapp' | 'mail' | 'messages' | 'ninja' | 'instagram' | 'x';
 export const DELIVERY_SEQUENCE: SimulatedAppId[] = ['whatsapp', 'mail', 'messages', 'instagram', 'x', 'ninja'];
+const DELIVERY_INTERVAL_MS = 30000;
+const MAX_AUTO_NOTIFICATIONS_PER_APP = 16;
+const DELIVERY_LEDGER_KEY = 'sim-delivery-ledger-v3';
+
+interface DeliveryLedger {
+  counts: Partial<Record<SimulatedAppId, number>>;
+  bodies: Partial<Record<SimulatedAppId, string[]>>;
+}
+
+function readLedger(): DeliveryLedger {
+  return readStore<DeliveryLedger>(DELIVERY_LEDGER_KEY, { counts: {}, bodies: {} });
+}
+
+function canDeliver(appId: SimulatedAppId): boolean {
+  return (readLedger().counts[appId] ?? 0) < MAX_AUTO_NOTIFICATIONS_PER_APP;
+}
+
+function rememberDelivery(appId: SimulatedAppId, body: string): void {
+  const ledger = readLedger();
+  const bodies = ledger.bodies[appId] ?? [];
+  if (bodies.includes(body)) return;
+  writeStore(DELIVERY_LEDGER_KEY, {
+    counts: { ...ledger.counts, [appId]: (ledger.counts[appId] ?? 0) + 1 },
+    bodies: { ...ledger.bodies, [appId]: [...bodies, body] },
+  });
+}
 
 export function sendIncomingForApp(appId: SimulatedAppId, addNotification: (n: NewNotification) => void): boolean {
+  if (!canDeliver(appId)) return false;
   if (appId === 'whatsapp') {
     const incoming = deliverWhatsAppMessage();
     if (!incoming) return false;
+    if (readLedger().bodies[appId]?.includes(incoming.text)) return false;
+    rememberDelivery(appId, incoming.text);
     addNotification({ id: incoming.messageId, appId, title: incoming.title ?? incoming.senderName, body: incoming.text, targetId: incoming.chatId, messageId: incoming.messageId, badge: incoming.totalUnread });
     return true;
   }
   const message = deliverInboxMessage(appId);
   if (!message) return false;
+  if (readLedger().bodies[appId]?.includes(message.body)) return false;
+  rememberDelivery(appId, message.body);
   addNotification(message);
   return true;
 }
@@ -62,10 +93,10 @@ export function useNotificationSimulation() {
           if (appId === 'whatsapp' && latest.current.settings.whatsappAutoMessages === false) appId = 'mail';
           if (sendIncomingForApp(appId, latest.current.addNotification)) writeStore('sim-feed-cursor-v2', index + 1);
         }
-        schedule(10000);
+        schedule(DELIVERY_INTERVAL_MS);
       }, delay);
     };
-    schedule(6000);
+    schedule(DELIVERY_INTERVAL_MS);
     return () => {
       stopped = true;
       clearTimeout(timer);

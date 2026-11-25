@@ -50,10 +50,10 @@ const WA_DEEPLINK_KEY = 'wa-sim-deeplink';
 
 export const PROJECT_MEMBERS: WAGroupMember[] = [
   { id: 'me', name: 'منار', color: '#25D366' },
-  { id: 'c-reem', name: 'ريم', color: '#F59E0B' },
-  { id: 'c-noura', name: 'نورة', color: '#60A5FA' },
-  { id: 'c-joud', name: 'جود', color: '#F472B6' },
-  { id: 'c-lina', name: 'لينا', color: '#A78BFA' },
+  { id: 'c-reem', name: 'زهراء علي', color: '#F59E0B' },
+  { id: 'c-noura', name: 'زهراء زهير', color: '#60A5FA' },
+  { id: 'c-joud', name: 'فرقان', color: '#F472B6' },
+  { id: 'c-lina', name: 'فاطمه ماجد', color: '#A78BFA' },
 ];
 
 export const SAMPLE_CONTACTS: WAContact[] = [
@@ -413,8 +413,11 @@ function deliverIntoChat(targetChatId?: string, replyTo?: string): IncomingWhats
   try {
     const { chats, contacts } = ensureWhatsAppStore();
     const eligible = chats.filter((chat) => chat.contactId === NINJA_CONTACT_ID || chat.contactId === PROJECT_CONTACT_ID || Boolean(NORMAL_MESSAGES[chat.contactId]));
+    const routeCursor = Number(window.localStorage.getItem('sim-wa-route-cursor-v2') ?? '0');
+    const validRouteCursor = Number.isFinite(routeCursor) && routeCursor >= 0 ? routeCursor : 0;
     const chat = targetChatId ? chats.find((item) => item.id === targetChatId)
-      : eligible[Math.floor(Math.random() * eligible.length)];
+      : eligible[validRouteCursor % eligible.length];
+    if (!targetChatId) window.localStorage.setItem('sim-wa-route-cursor-v2', String(validRouteCursor + 1));
     if (!chat) return null;
     const contact = contacts.find((item) => item.id === chat.contactId);
     let senderName = contact?.name || 'جهة اتصال';
