@@ -23,7 +23,14 @@ export function usePersistentState<T>(
     } catch {
       // ignore parse errors
     }
-    initialized.current = true;
+    // Enable saving only AFTER the loaded value has been applied. Saving on the
+    // very first pass (or React StrictMode's second pass) would overwrite the
+    // stored data - e.g. a newly delivered WhatsApp message - with initialValue.
+    initialized.current = false;
+    const t = setTimeout(() => {
+      initialized.current = true;
+    }, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
