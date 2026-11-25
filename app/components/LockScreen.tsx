@@ -6,28 +6,8 @@ import { useSystem, wallpaperCss } from '../system/SystemContext';
 import { useOS } from '../OSContext';
 import { getApp } from '../apps/registry';
 import { Lock, Flashlight, Camera, ChevronUp, X } from 'lucide-react';
-import { RAMADAN_NOTIFICATIONS } from '../apps/ninja/data';
-import { sendIncomingWhatsApp } from '../system/whatsappSimulation';
-
-/* ============================================================
- * Lock-screen notification feed
- * ------------------------------------------------------------
- * The lock screen starts clean. Once the screen is on, notifications
- * arrive one by one, like on a real iPhone:
- *   - the first one lands LOCK_FIRST_DELAY_MS after the screen turns on
- *   - the next ones follow every LOCK_GAP_MIN_MS..LOCK_GAP_MAX_MS
- * Change the order / timing here.
- * ============================================================ */
-const LOCK_FIRST_DELAY_MS = 10 * 1000;
-const LOCK_GAP_MIN_MS = 10 * 1000;
-const LOCK_GAP_MAX_MS = 10 * 1000;
-/** Order of the feed; it loops. 'ninja' = campaign push, 'whatsapp' = chat message */
-const LOCK_FEED_SCRIPT: ('ninja' | 'whatsapp')[] = ['ninja', 'whatsapp', 'whatsapp', 'ninja', 'whatsapp'];
-/** Max cards shown at once; the rest collapse into a "+N more" pill */
+// The single PhoneFrame feed delivers actual messages for all six applications.
 const MAX_VISIBLE = 3;
-
-// Survives lock/unlock cycles so the Ninja messages keep rotating
-let ninjaCursor = 0;
 
 const DAYS = [
   'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء',
@@ -47,7 +27,6 @@ export default function LockScreen() {
     notifications,
     dismissNotification,
     openNotification,
-    addNotification,
   } = useSystem();
 
   const { openApp } = useOS();
@@ -104,46 +83,6 @@ export default function LockScreen() {
     const id = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(id);
   }, []);
-
-  // The feed: notifications arrive over time while the lock screen is on
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    let step = 0;
-
-    const deliver = () => {
-      const kind = LOCK_FEED_SCRIPT[step % LOCK_FEED_SCRIPT.length];
-      step += 1;
-      if (kind === 'ninja') {
-        const i = ninjaCursor % RAMADAN_NOTIFICATIONS.length;
-        ninjaCursor += 1;
-        const msg = RAMADAN_NOTIFICATIONS[i];
-        addNotification({
-          appId: 'ninja',
-          id: `ninja-ramadan-${i}`,
-          title: msg.title,
-          body: msg.body,
-          targetId: `ninja-ramadan-${i}`,
-        });
-      } else {
-        sendIncomingWhatsApp(addNotification);
-      }
-    };
-
-    const schedule = (delay: number) => {
-      timer = setTimeout(() => {
-        if (cancelled || unlockingRef.current) return;
-        deliver();
-        schedule(LOCK_GAP_MIN_MS + Math.random() * (LOCK_GAP_MAX_MS - LOCK_GAP_MIN_MS));
-      }, delay);
-    };
-    schedule(LOCK_FIRST_DELAY_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [addNotification]);
 
   const dismissWithAnimation = useCallback(
     (id: string) => {
@@ -215,6 +154,7 @@ export default function LockScreen() {
 
   return (
     <div
+      data-lock-screen="true"
       className="absolute inset-0 z-[80] flex flex-col items-center overflow-hidden select-none"
       style={{
         backgroundColor: '#f5f5f7',
@@ -289,6 +229,8 @@ export default function LockScreen() {
             >
               <div className="flex items-start gap-3 rounded-[22px] border border-white/80 bg-white/85 p-3.5 shadow-[0_3px_18px_rgba(0,0,0,0.08)] backdrop-blur-2xl">
                 <button
+                  data-notification-app={n.appId}
+                  data-notification-id={n.id}
                   onClick={() => {
                     openNotification(n);
                     if (app) openApp(app.id);

@@ -81,6 +81,8 @@ export default function NotificationBanner() {
       }}
     >
       <button
+        data-notification-app={banner.appId}
+        data-notification-id={banner.id}
         onClick={open}
         className="flex w-full items-center gap-3 rounded-[26px] border border-white/70 px-3.5 py-3 text-right shadow-[0_10px_34px_rgba(0,0,0,0.18)] active:scale-[0.98]"
         style={{

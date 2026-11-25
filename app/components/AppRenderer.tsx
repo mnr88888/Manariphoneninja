@@ -109,6 +109,9 @@ export default function AppRenderer({
 
   return (
     <div
+      data-simulator-app={appId}
+      data-app-active={active ? 'true' : 'false'}
+      aria-hidden={!active}
       className={`absolute inset-0 z-30 ${animClass} ${isDark && appId !== 'whatsapp' ? 'dark-shell' : ''}`}
       style={{
         visibility: isHidden ? 'hidden' : 'visible',
