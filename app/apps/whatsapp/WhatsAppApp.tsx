@@ -58,6 +58,10 @@ interface WARecentCall {
   timestamp: number;
 }
 
+function isPinnedChat(chat: WAChat): boolean {
+  return chat.pinned === true || chat.contactId === 'c-project-sarah';
+}
+
 /* ============================================================
  * Main component
  * ============================================================ */
@@ -233,7 +237,7 @@ export default function WhatsAppApp() {
 
   const filteredChats = useMemo(() => {
     const sorted = [...chats].sort((a, b) => {
-      if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+      if (isPinnedChat(a) !== isPinnedChat(b)) return isPinnedChat(a) ? -1 : 1;
       return (b.messages[b.messages.length - 1]?.timestamp ?? 0) - (a.messages[a.messages.length - 1]?.timestamp ?? 0);
     });
     if (!search.trim()) return sorted;
@@ -538,7 +542,7 @@ export default function WhatsAppApp() {
                     {contact?.name}
                   </span>
                   <span className="flex shrink-0 items-center gap-1 text-[11px] text-white/50">
-                    {chat.pinned && <Pin className="h-3 w-3 rotate-45 text-[#25D366]" />}
+                    {isPinnedChat(chat) && <Pin className="h-3 w-3 rotate-45 text-[#25D366]" />}
                     {formatArabicTime(last?.timestamp ?? Date.now())}
                   </span>
                 </div>

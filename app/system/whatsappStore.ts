@@ -35,6 +35,7 @@ export interface WAChat {
   participants?: WAGroupMember[];
   /** Persisted cursor: group messages continue in order after a reload. */
   nextIncomingIndex?: number;
+  pinned?: boolean;
 }
 
 export const HOUR = 3600000;
@@ -178,7 +179,7 @@ export const SAMPLE_CHATS: WAChat[] = [
     { id: 'doctor-seed-4', text: 'تستاهلين على هالشغل يا منار، أبدعتي والله.', sender: 'them', senderId: DOCTOR_CONTACT_ID, senderName: 'الدكتورة سارة', timestamp: nextMondayMorning + 120000, type: 'text' },
   ] },
   { id: PROJECT_CHAT_ID, contactId: PROJECT_CONTACT_ID, isGroup: true, name: PROJECT_GROUP_NAME,
-    participants: PROJECT_MEMBERS, unread: 0, nextIncomingIndex: 0, messages: groupSeedMessages },
+    participants: PROJECT_MEMBERS, unread: 0, nextIncomingIndex: 0, pinned: true, messages: groupSeedMessages },
 ];
 
 const NINJA_MESSAGES = [
@@ -202,26 +203,22 @@ const NORMAL_MESSAGES: Record<string, string[]> = {
 };
 
 const GROUP_INCOMING: Array<[string, string]> = [
-  ['c-reem', 'صباح الخير يا بنات، جهزت محتوى الملاحظات وقائمة مهام للمحاكي'],
-  ['c-noura', 'حلو! أنا خلصت مقدمة العرض، نبدأ من شاشة القفل زي ما اتفقنا'],
-  ['c-joud', 'جربت إشعار واتساب، يفتح المحادثة الصح. باقي أتأكد من عداد غير المقروء'],
-  ['c-lina', 'ضبطت الألوان وحجم الأيقونات، صار مرتب حتى على شاشة صغيرة'],
-  ['c-reem', 'طيب نخلي البحث يلقى اسم المحادثة وكلمة من الرسائل؟ بيكون مفيد بالعرض'],
-  ['c-joud', 'إيه، وبنجرب نرسل رسالة ونحدث الصفحة، لازم تبقى موجودة'],
-  ['c-noura', 'بحط هذي نقطة في الشرح: البيانات محفوظة محلياً مو حساب واتساب حقيقي'],
-  ['c-lina', 'تمام، وكتبت تحت المكالمات إنها محاكاة، عشان ما نوعد بشي مو موجود'],
-  ['c-reem', 'يا منار إذا شفتي هذي اكتبي لنا وش باقي عليك ونساعدك'],
-  ['c-joud', 'وأنا عليّ اختبار الرجوع من التطبيقات. ما أبي زر الرجوع يرجعنا لسنة التحضيري 😂'],
-  ['c-noura', 'ههههه التحضيري لا تكفين، بالكاد نجونا'],
-  ['c-lina', 'أبي رأيكم: خلفية هادية للعرض ولا ألوان؟ أحس الهادية تبين الواجهة أكثر'],
-  ['c-reem', 'الهادية أحلى، ونوريهم تغيير الخلفية من الإعدادات بالنهاية'],
-  ['c-joud', 'اتفقنا. سجلت سيناريو: إشعار، محادثة، إرسال، ملاحظة، إعدادات'],
-  ['c-noura', 'بنسوي بروفة خمس دقايق لكل وحدة، بس لا أحد يقول مشروعنا بسيط 😂'],
-  ['c-lina', 'مو بسيط! هذا تعبنا كله داخل آيفون صغير ههههه'],
-  ['c-reem', 'باقي نراجع المحتوى والإملاء، خلونا نسوي جولة ثانية بعد البروفة'],
-  ['c-joud', 'أنا جاهزة للجولة، بطلع كل زر يزعلنا قبل ما تضغطه الدكتوره'],
-  ['c-noura', 'ممتاز، بعدها أحدث الشرائح بالنسخة النهائية وأرسلها لكم'],
-  ['c-lina', 'يلا يا فريق، نكمل المراجعة وبعدين قهوة تستاهل التعب'],
+  ['c-reem', 'بنات عندي اقتراح: نخلي زر الرجوع يرجعنا للعرض… مو لأيام الاختبارات 😂'],
+  ['c-noura', 'أنا جهزت مقدمة العرض، بس كل ما أقول آيفون أنسى وين حطيت الآيفون نفسه ههههه'],
+  ['c-joud', 'اختبرت الإشعار وفتح المحادثة الصح… أخيراً زر ما قرر يعيش حياته الخاصة 😂'],
+  ['c-lina', 'ضبطت الألوان، واللون البنفسجي صار يقول أنا واجهة احترافية لا تلمسوني'],
+  ['c-reem', 'منار لا تنسين تراجعين الملاحظات، أنا كتبتها بخط جميل عشان ما نخاف منها'],
+  ['c-joud', 'سويت اختبار إعادة التحميل، الرسائل بقيت موجودة وأنا اختفيت من التعب'],
+  ['c-noura', 'في العرض إذا سألونا هل هذا آيفون حقيقي نقول: حقيقي لدرجة يحتاج قهوة فقط 😂'],
+  ['c-lina', 'قضيت ساعة أعدل مسافة زر واحد… الزر الآن سعيد ونحن نحتاج إجازة'],
+  ['c-reem', 'مين مسؤولة عن القهوة؟ هذا أهم جزء في خطة المشروع وباقي التفاصيل ثانوية ههههه'],
+  ['c-joud', 'كتبت قائمة الاختبار: إرسال، رجوع، بحث، ثم مكافأة المختبرة بقطعة شوكولاتة'],
+  ['c-noura', 'الشرائح جاهزة، بس الشريحة الأخيرة تقول شكراً لحسن استماعكم وأنا أقول شكراً لحسن صبركم 😂'],
+  ['c-lina', 'أقترح نختم العرض بتغيير الخلفية، وإذا علق الجوال نقول مؤثر درامي مقصود'],
+  ['c-reem', 'راجعت أسماء العضوات خمس مرات، هذه المرة الدكتوره ما دخلت بالغلط الحمدلله 😭'],
+  ['c-joud', 'لقيت زر صغير كان يختبئ، أقنعته يطلع في مكان واضح بدون مفاوضات طويلة'],
+  ['c-noura', 'بروفة اليوم خمس دقائق فقط… وهذه كذبة جماعية اتفقنا عليها من الآن 😂'],
+  ['c-lina', 'الفريق جاهز، والآيفون الوهمي جاهز، وأنا جاهزة أطلب قهوة قبل البداية'],
 ];
 
 export interface IncomingWhatsApp {
@@ -359,6 +356,7 @@ export function ensureWhatsAppStore(): { chats: WAChat[]; contacts: WAContact[] 
     const project = chats.find((chat) => chat.contactId === PROJECT_CONTACT_ID)!;
     project.isGroup = true;
     project.name = PROJECT_GROUP_NAME;
+    project.pinned = true;
     project.participants = cloneSamples(PROJECT_MEMBERS); // Exactly Manar + four classmates.
     project.nextIncomingIndex = typeof project.nextIncomingIndex === 'number' && Number.isFinite(project.nextIncomingIndex)
       ? Math.max(0, Math.floor(project.nextIncomingIndex)) : 0;
@@ -442,7 +440,9 @@ function deliverIntoChat(targetChatId?: string, replyTo?: string): IncomingWhats
     let nextIncomingIndex = chat.nextIncomingIndex;
     if (chat.contactId === PROJECT_CONTACT_ID) {
       const cursor = chat.nextIncomingIndex ?? 0;
-      const [memberId, message] = GROUP_INCOMING[cursor % GROUP_INCOMING.length];
+      const available = GROUP_INCOMING.filter(([, candidate]) => !chat.messages.some((message) => message.text === candidate));
+      if (available.length === 0) return null;
+      const [memberId, message] = available[cursor % available.length];
       const member = PROJECT_MEMBERS.find((person) => person.id === memberId)!;
       senderId = member.id;
       senderName = member.name;
