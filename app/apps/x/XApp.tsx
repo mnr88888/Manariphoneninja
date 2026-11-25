@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import SocialInbox from '../shared/SocialInbox';
 import {
   Home,
   Search as SearchIcon,
@@ -533,8 +534,11 @@ function CampaignEditor({ t, onClose }: { t: Theme; onClose: () => void }) {
  * ============================================================ */
 
 export default function XApp() {
-  const { isDark, ninjaCampaign, ninjaProfile } = useSystem();
+  const { isDark, ninjaCampaign, ninjaProfile, pendingDeepLink } = useSystem();
   const [tab, setTab] = useState<Tab>('home');
+  useEffect(() => {
+    if (pendingDeepLink?.appId === 'x') { setComposeOpen(false); setCampaignOpen(false); setTab('messages'); }
+  }, [pendingDeepLink]);
   const [feedTab, setFeedTab] = useState<FeedTab>('foryou');
   const [activeTag, setActiveTag] = useState<string>(NINJA_HASHTAG);
   const [query, setQuery] = useState('');
@@ -740,59 +744,8 @@ export default function XApp() {
   };
 
   /* ---------- Notifications ---------- */
-  const renderActivity = () => {
-    const items = [
-      { icon: <UserPlus className="h-5 w-5" style={{ color: BLUE }} />, who: 'نورة القحطاني', what: 'بدأت بمتابعتك', time: 12 * MIN },
-      { icon: <Heart className="h-5 w-5 fill-[#F91880] text-[#F91880]" />, who: 'أحمد العتيبي', what: 'أعجب بمنشورك عن سفرة الإفطار', time: 35 * MIN },
-      { icon: <Repeat2 className="h-5 w-5 text-[#00BA7C]" />, who: 'سارة الحربي', what: `أعادت نشر منشورك ${NINJA_HASHTAG}`, time: 2 * HOUR },
-      { icon: <Heart className="h-5 w-5 fill-[#F91880] text-[#F91880]" />, who: 'خالد المطيري', what: 'و٢٣ آخرون أعجبوا بمنشورك', time: 4 * HOUR },
-      { icon: <MessageCircle className="h-5 w-5" style={{ color: BLUE }} />, who: 'محمد سالم', what: 'رد على منشورك: رمضان كريم 🌙', time: 6 * HOUR },
-    ];
-    return (
-      <>
-        <h1 className={`shrink-0 px-4 pb-2 pt-2 text-[20px] font-extrabold ${t.text}`}>الإشعارات</h1>
-        <div className="no-scrollbar flex-1 overflow-y-auto pb-32">
-          {items.map((it, i) => (
-            <div key={i} className={`flex items-start gap-3 border-b px-4 py-3.5 ${t.border}`}>
-              <div className="mt-0.5 w-6 shrink-0">{it.icon}</div>
-              <div className="flex-1">
-                <p className={`text-[14px] ${t.text}`}>
-                  <b>{it.who}</b> {it.what}
-                </p>
-                <p className={`mt-0.5 text-[12px] ${t.sub}`}>{shortTime(Date.now() - it.time)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </>
-    );
-  };
-
-  /* ---------- Messages ---------- */
-  const renderMessages = () => (
-    <>
-      <h1 className={`shrink-0 px-4 pb-2 pt-2 text-[20px] font-extrabold ${t.text}`}>الرسائل</h1>
-      <div className="no-scrollbar flex-1 overflow-y-auto pb-32">
-        {[
-          { name: 'Ninja', last: 'كود خصم رمضان RAMADAN20 جاهز لك 🎁', color: '/ninja.webp', time: 20 * MIN, verified: true },
-          { name: 'أحمد العتيبي', last: 'تمام، نتقابل على الإفطار', color: '#FF3B30', time: 2 * HOUR },
-          { name: 'نورة القحطاني', last: 'شكراً لك، رمضان مبارك 🌙', color: '#007AFF', time: 5 * HOUR },
-        ].map((m) => (
-          <div key={m.name} className={`flex items-center gap-3 border-b px-4 py-3 ${t.border}`}>
-            <Avatar src={m.color} name={m.name} size={48} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className={`text-[15px] font-bold ${t.text}`}>{m.name}</p>
-                {m.verified && <Verified />}
-                <span className={`text-[12px] ${t.sub}`}>· {shortTime(Date.now() - m.time)}</span>
-              </div>
-              <p className={`truncate text-[13px] ${t.sub}`}>{m.last}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
+  const renderActivity = () => <SocialInbox appId="x" activity onClose={() => setTab('home')} />;
+  const renderMessages = () => <SocialInbox appId="x" onClose={() => setTab('home')} />;
 
   /* ---------- Bookmarks ---------- */
   const renderBookmarks = () => {
@@ -868,7 +821,7 @@ export default function XApp() {
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${t.bg}`}>
-      <div className="absolute inset-x-0 bottom-0 top-12 flex flex-col">
+      <div className={`absolute inset-x-0 top-12 flex flex-col ${tab === 'messages' || tab === 'activity' ? 'bottom-[98px]' : 'bottom-0'}`}>
         {tab === 'home' && renderHome()}
         {tab === 'explore' && renderExplore()}
         {tab === 'hashtag' && renderHashtag()}
