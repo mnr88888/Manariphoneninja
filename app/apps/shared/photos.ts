@@ -9,7 +9,7 @@ export interface SimPhoto {
   gradient: string;
   /** Original uploaded/captured image stored as a Blob in IndexedDB. */
   imageKey?: string;
-  /** Runtime object URL resolved from the original Blob. */
+/** Original image data URL resolved from IndexedDB without re-encoding pixels. */
   imageUrl?: string;
   label: string;
   album: string;
@@ -57,12 +57,14 @@ function openPhotoDb(): Promise<IDBDatabase> {
 
 async function saveOriginalImage(key: string, source: Blob | string): Promise<boolean> {
   try {
-    const blob = typeof source === 'string'
-      ? await fetch(source).then((response) => response.blob())
-      : source;
+    const dataUrl = typeof source === 'string' && source.startsWith('data:image/')
+      ? source
+      : await blobToDataUrl(typeof source === 'string'
+        ? await fetch(source).then((response) => response.blob())
+        : source);
     const db = await openPhotoDb();
     await new Promise<void>((resolve, reject) => {
-      const request = db.transaction(PHOTO_STORE_NAME, 'readwrite').objectStore(PHOTO_STORE_NAME).put(blob, key);
+      const request = db.transaction(PHOTO_STORE_NAME, 'readwrite').objectStore(PHOTO_STORE_NAME).put(dataUrl, key);
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
@@ -73,16 +75,27 @@ async function saveOriginalImage(key: string, source: Blob | string): Promise<bo
   }
 }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('تعذر قراءة الصورة'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function readOriginalImage(key: string): Promise<string | null> {
   try {
     const db = await openPhotoDb();
-    const blob = await new Promise<Blob | undefined>((resolve, reject) => {
+    const stored = await new Promise<string | Blob | undefined>((resolve, reject) => {
       const request = db.transaction(PHOTO_STORE_NAME, 'readonly').objectStore(PHOTO_STORE_NAME).get(key);
-      request.onsuccess = () => resolve(request.result as Blob | undefined);
+      request.onsuccess = () => resolve(request.result as string | Blob | undefined);
       request.onerror = () => reject(request.error);
     });
     db.close();
-    return blob ? URL.createObjectURL(blob) : null;
+    if (!stored) return null;
+    // Migrate older records that were saved as Blobs to a stable data URL.
+    return typeof stored === 'string' ? stored : await blobToDataUrl(stored);
   } catch {
     return null;
   }
